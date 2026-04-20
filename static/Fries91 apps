@@ -1,0 +1,309 @@
+// ==UserScript== // @name         Torn Hub // @namespace    torn.hub.fries91 // @version      0.1.0 // @description  One launcher hub for Torn that opens separate app overlays. // @author       Fries91 // @match        https://www.torn.com/* // @match        https://torn.com/* // @grant        GM_addStyle // @grant        GM_getValue // @grant        GM_setValue // @grant        GM_deleteValue // @grant        GM_registerMenuCommand // @run-at       document-end // ==/UserScript==
+
+(function () { 'use strict';
+
+const HUB_ID = 'fries-torn-hub'; const HUB_SHIELD_ID = 'fries-torn-hub-shield'; const HUB_OVERLAY_ID = 'fries-torn-hub-overlay'; const HUB_MODAL_ID = 'fries-torn-hub-modal'; const HUB_APP_LAYER_ID = 'fries-torn-app-layer';
+
+const K_HUB_OPEN = 'torn_hub_open'; const K_HUB_POS = 'torn_hub_pos'; const K_HUB_MINIMIZE_ON_OPEN = 'torn_hub_minimize_on_open'; const K_ENABLED_APPS = 'torn_hub_enabled_apps';
+
+const DEFAULT_POS = { right: 18, top: 260 };
+
+const state = { apps: [], openApps: new Map(), hubOpen: readBool(K_HUB_OPEN, false), minimizeOnOpen: readBool(K_HUB_MINIMIZE_ON_OPEN, true), mounted: false, };
+
+function readBool(key, fallback) { try { const v = GM_getValue(key, fallback); return !!v; } catch (_) { return fallback; } }
+
+function readJSON(key, fallback) { try { const raw = GM_getValue(key, ''); if (!raw) return fallback; return JSON.parse(raw); } catch (_) { return fallback; } }
+
+function writeJSON(key, value) { try { GM_setValue(key, JSON.stringify(value)); } catch (_) {} }
+
+function saveHubOpen(next) { state.hubOpen = !!next; try { GM_setValue(K_HUB_OPEN, state.hubOpen); } catch (_) {} renderHubVisibility(); }
+
+function saveMinimizeOnOpen(next) { state.minimizeOnOpen = !!next; try { GM_setValue(K_HUB_MINIMIZE_ON_OPEN, state.minimizeOnOpen); } catch (_) {} renderHubCards(); }
+
+function getHubPos() { return readJSON(K_HUB_POS, DEFAULT_POS) || DEFAULT_POS; }
+
+function saveHubPos(pos) { writeJSON(K_HUB_POS, pos); }
+
+function appEnabled(appId) { const enabled = readJSON(K_ENABLED_APPS, null); if (!enabled || typeof enabled !== 'object') return true; return enabled[appId] !== false; }
+
+function setAppEnabled(appId, isEnabled) { const enabled = readJSON(K_ENABLED_APPS, {}); enabled[appId] = !!isEnabled; writeJSON(K_ENABLED_APPS, enabled); renderHubCards(); }
+
+function registerApp(app) { if (!app || !app.id || !app.name || typeof app.open !== 'function') return; const exists = state.apps.some((a) => a.id === app.id); if (exists) return; state.apps.push({ icon: '📦', description: '', enabledByDefault: true, ...app, }); renderHubCards(); }
+
+function ensureStyles() { GM_addStyle(#${HUB_SHIELD_ID} { position: fixed; z-index: 2147483647; width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, #521010 0%, #1a1a1a 100%); border: 1px solid rgba(255,255,255,.15); box-shadow: 0 8px 18px rgba(0,0,0,.45); color: #fff; font-size: 24px; user-select: none; cursor: pointer; } #${HUB_OVERLAY_ID} { position: fixed; z-index: 2147483646; right: 78px; top: 120px; width: min(360px, calc(100vw - 24px)); max-height: min(78vh, 760px); display: none; flex-direction: column; background: rgba(12,14,18,.96); color: #eef3ff; border: 1px solid rgba(255,255,255,.12); border-radius: 16px; box-shadow: 0 16px 36px rgba(0,0,0,.5); overflow: hidden; backdrop-filter: blur(8px); } #${HUB_OVERLAY_ID}.open { display: flex; } .thub-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: linear-gradient(180deg, rgba(120,16,16,.28), rgba(255,255,255,.02)); border-bottom: 1px solid rgba(255,255,255,.08); } .thub-title { font-weight: 800; letter-spacing: .3px; font-size: 15px; } .thub-sub { opacity: .72; font-size: 11px; margin-top: 2px; } .thub-actions { display: flex; gap: 8px; } .thub-btn { border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: #fff; border-radius: 10px; padding: 8px 10px; font-size: 12px; cursor: pointer; } .thub-body { padding: 12px; overflow: auto; } .thub-section-title { font-weight: 700; font-size: 13px; margin: 0 0 10px; } .thub-grid { display: grid; grid-template-columns: 1fr; gap: 10px; } .thub-card { border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 12px; background: rgba(255,255,255,.04); } .thub-card-top { display: flex; align-items: center; gap: 10px; } .thub-app-icon { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: rgba(255,255,255,.08); font-size: 20px; flex: 0 0 42px; } .thub-app-name { font-size: 14px; font-weight: 800; } .thub-app-desc { font-size: 12px; opacity: .8; margin-top: 3px; } .thub-card-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; } .thub-open { background: linear-gradient(180deg, #a01d1d, #6e1111); } .thub-muted { opacity: .78; } .thub-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.06); } .thub-note { font-size: 11px; opacity: .72; margin-top: 10px; } .thub-window { position: fixed; z-index: 2147483645; width: min(420px, calc(100vw - 20px)); max-height: min(82vh, 900px); background: rgba(14,16,22,.98); color: #eef3ff; border: 1px solid rgba(255,255,255,.12); border-radius: 16px; box-shadow: 0 20px 40px rgba(0,0,0,.5); overflow: hidden; } .thub-window-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02)); border-bottom: 1px solid rgba(255,255,255,.08); cursor: move; } .thub-window-body { padding: 12px; overflow: auto; max-height: calc(min(82vh, 900px) - 50px); } .thub-empty { font-size: 12px; opacity: .8; padding: 10px 0; }); }
+
+function ensureRoot() { if (document.getElementById(HUB_ID)) return;
+
+const root = document.createElement('div');
+root.id = HUB_ID;
+root.innerHTML = `
+  <div id="${HUB_SHIELD_ID}" title="Torn Hub">🏰</div>
+  <div id="${HUB_OVERLAY_ID}">
+    <div class="thub-head">
+      <div>
+        <div class="thub-title">Torn Hub</div>
+        <div class="thub-sub">Open your scripts from one place</div>
+      </div>
+      <div class="thub-actions">
+        <button class="thub-btn" id="thub-refresh-btn">↻</button>
+        <button class="thub-btn" id="thub-close-btn">✕</button>
+      </div>
+    </div>
+    <div class="thub-body">
+      <div class="thub-section-title">Apps</div>
+      <div class="thub-grid" id="thub-app-grid"></div>
+      <div class="thub-section-title" style="margin-top:14px;">Hub Settings</div>
+      <div class="thub-card">
+        <div class="thub-toggle-row">
+          <div>
+            <div class="thub-app-name">Minimize hub after opening app</div>
+            <div class="thub-app-desc">Cleaner for PDA and mobile screens.</div>
+          </div>
+          <button class="thub-btn" id="thub-minimize-toggle"></button>
+        </div>
+      </div>
+      <div class="thub-note">Each app opens in its own overlay window. More apps can be added later without adding more page buttons.</div>
+    </div>
+  </div>
+  <div id="${HUB_APP_LAYER_ID}"></div>
+`;
+document.body.appendChild(root);
+
+const shield = document.getElementById(HUB_SHIELD_ID);
+const closeBtn = document.getElementById('thub-close-btn');
+const refreshBtn = document.getElementById('thub-refresh-btn');
+const minimizeToggle = document.getElementById('thub-minimize-toggle');
+
+shield.addEventListener('click', () => saveHubOpen(!state.hubOpen));
+closeBtn.addEventListener('click', () => saveHubOpen(false));
+refreshBtn.addEventListener('click', () => renderHubCards());
+minimizeToggle.addEventListener('click', () => saveMinimizeOnOpen(!state.minimizeOnOpen));
+
+makeDraggableShield(shield);
+placeShield();
+renderHubVisibility();
+renderHubCards();
+
+}
+
+function placeShield() { const shield = document.getElementById(HUB_SHIELD_ID); if (!shield) return; const pos = getHubPos(); shield.style.right = ${Number(pos.right || DEFAULT_POS.right)}px; shield.style.top = ${Number(pos.top || DEFAULT_POS.top)}px; }
+
+function renderHubVisibility() { const overlay = document.getElementById(HUB_OVERLAY_ID); if (!overlay) return; overlay.classList.toggle('open', !!state.hubOpen); }
+
+function renderHubCards() { const grid = document.getElementById('thub-app-grid'); const toggle = document.getElementById('thub-minimize-toggle'); if (toggle) toggle.textContent = state.minimizeOnOpen ? 'On' : 'Off'; if (!grid) return;
+
+const apps = state.apps.filter((app) => appEnabled(app.id));
+if (!apps.length) {
+  grid.innerHTML = `<div class="thub-empty">No apps registered yet. Add the first module next.</div>`;
+  return;
+}
+
+grid.innerHTML = apps.map((app) => `
+  <div class="thub-card" data-app-id="${escapeHtml(app.id)}">
+    <div class="thub-card-top">
+      <div class="thub-app-icon">${escapeHtml(app.icon || '📦')}</div>
+      <div>
+        <div class="thub-app-name">${escapeHtml(app.name)}</div>
+        <div class="thub-app-desc">${escapeHtml(app.description || '')}</div>
+      </div>
+    </div>
+    <div class="thub-card-actions">
+      <button class="thub-btn thub-open" data-open-app="${escapeHtml(app.id)}">Open</button>
+      <button class="thub-btn" data-toggle-app="${escapeHtml(app.id)}">Hide</button>
+    </div>
+  </div>
+`).join('');
+
+grid.querySelectorAll('[data-open-app]').forEach((btn) => {
+  btn.addEventListener('click', () => openApp(btn.getAttribute('data-open-app')));
+});
+
+grid.querySelectorAll('[data-toggle-app]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const appId = btn.getAttribute('data-toggle-app');
+    setAppEnabled(appId, false);
+  });
+});
+
+}
+
+function openApp(appId) { const app = state.apps.find((a) => a.id === appId); if (!app) return;
+
+if (state.minimizeOnOpen) saveHubOpen(false);
+app.open({
+  createWindow,
+  closeWindow,
+  isOpen: (id) => state.openApps.has(id),
+});
+
+}
+
+function createWindow({ id, title, width = 420, top = 110, left = null, content = '', onClose = null }) { if (!id) return null;
+
+const existing = document.getElementById(`thub-window-${id}`);
+if (existing) {
+  existing.style.display = 'block';
+  return existing;
+}
+
+const layer = document.getElementById(HUB_APP_LAYER_ID);
+if (!layer) return null;
+
+const win = document.createElement('div');
+win.className = 'thub-window';
+win.id = `thub-window-${id}`;
+win.style.width = `${width}px`;
+win.style.top = `${top}px`;
+win.style.left = left == null ? `${Math.max(10, window.innerWidth - width - 14)}px` : `${left}px`;
+
+win.innerHTML = `
+  <div class="thub-window-head">
+    <div class="thub-app-name">${escapeHtml(title || id)}</div>
+    <div class="thub-actions">
+      <button class="thub-btn" data-min>—</button>
+      <button class="thub-btn" data-close>✕</button>
+    </div>
+  </div>
+  <div class="thub-window-body">${content}</div>
+`;
+
+layer.appendChild(win);
+state.openApps.set(id, { id, onClose });
+
+const head = win.querySelector('.thub-window-head');
+const closeBtn = win.querySelector('[data-close]');
+const minBtn = win.querySelector('[data-min]');
+const body = win.querySelector('.thub-window-body');
+
+closeBtn.addEventListener('click', () => closeWindow(id));
+minBtn.addEventListener('click', () => {
+  body.style.display = body.style.display === 'none' ? 'block' : 'none';
+});
+
+makeDraggableWindow(head, win);
+return win;
+
+}
+
+function closeWindow(id) { const win = document.getElementById(thub-window-${id}); if (win) win.remove(); const entry = state.openApps.get(id); if (entry && typeof entry.onClose === 'function') { try { entry.onClose(); } catch (_) {} } state.openApps.delete(id); }
+
+function makeDraggableShield(el) { let startX = 0; let startY = 0; let startRight = 0; let startTop = 0; let dragging = false;
+
+el.addEventListener('pointerdown', (e) => {
+  dragging = true;
+  startX = e.clientX;
+  startY = e.clientY;
+  const rect = el.getBoundingClientRect();
+  startRight = Math.max(0, window.innerWidth - rect.right);
+  startTop = rect.top;
+  el.setPointerCapture(e.pointerId);
+});
+
+el.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const dx = e.clientX - startX;
+  const dy = e.clientY - startY;
+  const nextRight = Math.max(6, startRight - dx);
+  const nextTop = Math.max(6, startTop + dy);
+  el.style.right = `${nextRight}px`;
+  el.style.top = `${nextTop}px`;
+});
+
+const finish = () => {
+  if (!dragging) return;
+  dragging = false;
+  const rect = el.getBoundingClientRect();
+  saveHubPos({
+    right: Math.max(0, window.innerWidth - rect.right),
+    top: Math.max(0, rect.top),
+  });
+};
+
+el.addEventListener('pointerup', finish);
+el.addEventListener('pointercancel', finish);
+
+}
+
+function makeDraggableWindow(handle, target) { let startX = 0; let startY = 0; let startLeft = 0; let startTop = 0; let dragging = false;
+
+handle.addEventListener('pointerdown', (e) => {
+  dragging = true;
+  startX = e.clientX;
+  startY = e.clientY;
+  const rect = target.getBoundingClientRect();
+  startLeft = rect.left;
+  startTop = rect.top;
+  handle.setPointerCapture(e.pointerId);
+});
+
+handle.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const nextLeft = Math.max(6, startLeft + (e.clientX - startX));
+  const nextTop = Math.max(6, startTop + (e.clientY - startY));
+  target.style.left = `${nextLeft}px`;
+  target.style.top = `${nextTop}px`;
+});
+
+const finish = () => { dragging = false; };
+handle.addEventListener('pointerup', finish);
+handle.addEventListener('pointercancel', finish);
+
+}
+
+function escapeHtml(value) { return String(value ?? '') .replace(/&/g, '&') .replace(/</g, '<') .replace(/>/g, '>') .replace(/"/g, '"') .replace(/'/g, '''); }
+
+function registerDemoApps() { registerApp({ id: 'warhub', name: 'War Hub', icon: '⚔️', description: 'War tools, members, enemies, hospital, chain.', open: ({ createWindow }) => { createWindow({ id: 'warhub', title: 'War Hub', width: 420, content: <div class="thub-card"> <div class="thub-app-name">War Hub placeholder</div> <div class="thub-app-desc">This is where your real War Hub overlay will go next.</div> </div>, }); }, });
+
+registerApp({
+  id: 'insurance',
+  name: 'Sinner Insurance',
+  icon: '💊',
+  description: 'Plans, status, claims, and member insurance tools.',
+  open: ({ createWindow }) => {
+    createWindow({
+      id: 'insurance',
+      title: 'Sinner Insurance',
+      width: 420,
+      content: `
+        <div class="thub-card">
+          <div class="thub-app-name">Insurance placeholder</div>
+          <div class="thub-app-desc">This is where your insurance overlay will plug in.</div>
+        </div>
+      `,
+    });
+  },
+});
+
+registerApp({
+  id: 'lottery',
+  name: 'Lottery',
+  icon: '🎟️',
+  description: 'Ticket buying, current draw, wheel, and winners.',
+  open: ({ createWindow }) => {
+    createWindow({
+      id: 'lottery',
+      title: 'Lottery',
+      width: 420,
+      content: `
+        <div class="thub-card">
+          <div class="thub-app-name">Lottery placeholder</div>
+          <div class="thub-app-desc">This is where your lottery overlay will plug in.</div>
+        </div>
+      `,
+    });
+  },
+});
+
+}
+
+function boot() { if (state.mounted) return; state.mounted = true; ensureStyles(); ensureRoot(); registerDemoApps();
+
+try {
+  GM_registerMenuCommand('Open Torn Hub', () => saveHubOpen(true));
+} catch (_) {}
+
+}
+
+function startMountWatch() { setInterval(() => { if (!document.body) return; if (!document.getElementById(HUB_ID)) { state.mounted = false; boot(); } }, 2000); }
+
+boot(); startMountWatch(); })();

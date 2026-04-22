@@ -1,6 +1,3 @@
-Fries91 Apps Hub Loader
-This is the loader hub. The hub auto-updates from its own URL, and each app loads from its own live script URL when opened.
-
 // ==UserScript==
 // @name         Fries91 Apps Hub Loader
 // @namespace    torn.hub.fries91

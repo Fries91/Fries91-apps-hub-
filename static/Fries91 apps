@@ -12,6 +12,8 @@
 // @grant        GM_deleteValue
 // @grant        GM_registerMenuCommand
 // @run-at       document-end
+// @downloadURL  https://raw.githubusercontent.com/Fries91/Fries91-apps-hub-/main/static/torn-hub-merged.user.js
+// @updateURL    https://raw.githubusercontent.com/Fries91/Fries91-apps-hub-/main/static/torn-hub-merged.user.js
 // ==/UserScript==
 
 (function () {

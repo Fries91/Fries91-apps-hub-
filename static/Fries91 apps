@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn Hub
 // @namespace    torn.hub.fries91
-// @version      0.2.0
-// @description  One launcher hub for Torn that opens separate app overlays from a header icon.
+// @version      0.3.0
+// @description  One launcher hub for Torn that opens separate app overlays from a status-row icon.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -113,24 +113,39 @@
   function ensureStyles() {
     GM_addStyle(`
       #${HUB_SHIELD_ID} {
+        appearance: none;
+        -webkit-appearance: none;
         position: relative;
         z-index: 2147483647;
-        width: 40px;
-        height: 40px;
-        min-width: 40px;
-        border-radius: 10px;
-        display: flex;
+        width: 30px;
+        height: 30px;
+        min-width: 30px;
+        border-radius: 8px;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
         background: linear-gradient(180deg, #521010 0%, #1a1a1a 100%);
-        border: 1px solid rgba(255,255,255,.15);
+        border: 1px solid rgba(255,255,255,.18);
         box-shadow: 0 2px 8px rgba(0,0,0,.35);
         color: #fff;
-        font-size: 22px;
+        font-size: 18px;
+        line-height: 1;
         user-select: none;
         cursor: pointer;
+        padding: 0;
+        margin: 0;
+        flex: 0 0 auto;
+      }
+
+      #fries-torn-hub-status-slot {
+        position: relative;
+        z-index: 2147483647;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         margin-left: 8px;
         flex: 0 0 auto;
+        vertical-align: middle;
       }
 
       #${HUB_OVERLAY_ID} {
@@ -521,27 +536,56 @@
   }
 
   function getHeaderMountTarget() {
-    return (
-      document.querySelector('div[class*="header"] div[class*="content"]') ||
-      document.querySelector('div[class*="header"]') ||
-      document.querySelector('header') ||
-      null
-    );
+    const candidates = Array.from(document.querySelectorAll('div, ul, section, nav'));
+
+    for (const el of candidates) {
+      const text = (el.textContent || '').trim();
+      if (!text) continue;
+
+      const hasMoney = text.includes('$');
+      const hasPoints = /\bP\s*\d+/i.test(text) || text.includes(' P ');
+      const hasEnergy = /\d+\s*\/\s*\d+/.test(text);
+
+      if (hasMoney && (hasPoints || hasEnergy)) {
+        return el;
+      }
+    }
+
+    return null;
   }
 
   function ensureHeaderButton() {
     let btn = document.getElementById(HUB_SHIELD_ID);
+
     if (!btn) {
-      btn = document.createElement('div');
+      btn = document.createElement('button');
       btn.id = HUB_SHIELD_ID;
+      btn.type = 'button';
       btn.title = 'Open See Hub';
       btn.textContent = '🍟';
-      btn.addEventListener('click', () => saveHubOpen(!state.hubOpen));
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        saveHubOpen(!state.hubOpen);
+      });
     }
 
     const target = getHeaderMountTarget();
     if (!target) return false;
-    if (btn.parentElement !== target) target.appendChild(btn);
+
+    let slot = document.getElementById('fries-torn-hub-status-slot');
+    if (!slot) {
+      slot = document.createElement('div');
+      slot.id = 'fries-torn-hub-status-slot';
+    }
+
+    if (slot.parentElement !== target) {
+      target.appendChild(slot);
+    }
+
+    if (btn.parentElement !== slot) {
+      slot.appendChild(btn);
+    }
 
     return true;
   }
@@ -631,7 +675,7 @@
       if (!document.body) return;
       if (!document.getElementById(HUB_ID)) ensureRoot();
       ensureHeaderButton();
-    }, 2000);
+    }, 500);
   }
 
   boot();

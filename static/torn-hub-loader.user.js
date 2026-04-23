@@ -1,6 +1,3 @@
-Torn Hub userscript
-This version hides the bottom-corner War and Chain launcher and makes the hub launcher just the plain clickable 🍟 with no box.
-
 // ==UserScript==
 // @name         Torn Hub + War Hub Embedded
 // @namespace    torn.hub.fries91

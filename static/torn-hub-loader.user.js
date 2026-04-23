@@ -1,6 +1,3 @@
-Fries91 Apps Hub Loader
-This loader keeps the plain clickable 🍟 and hides the standalone app launchers while loading each app from its own live URL.
-
 // ==UserScript==
 // @name         Fries91 Apps Hub Loader
 // @namespace    torn.hub.fries91

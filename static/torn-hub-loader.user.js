@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hub + War Hub Embedded
 // @namespace    torn.hub.fries91
-// @version      0.4.3
+// @version      0.4.4
 // @description  See Hub launcher with embedded War and Chain module.
 // @author       Fries91
 // @match        https://www.torn.com/*
@@ -7577,6 +7577,8 @@ function _handleActionClick() {
 (function () {
   'use strict';
 
+  window.__FRIES_GIVEAWAY_EMBEDDED__ = true;
+
   const DEFAULT_BASE_URL = 'https://sinner-s-lottery.onrender.com';
   const K_BASE_URL = 'giveaway_base_url';
   const K_API_KEY = 'giveaway_api_key';
@@ -8254,6 +8256,7 @@ function _handleActionClick() {
       shield = document.createElement('div');
       shield.id = 'giveaway-shield';
       shield.textContent = 'GIVEAWAY';
+      if (window.__FRIES_GIVEAWAY_EMBEDDED__) shield.style.display = 'none';
       document.body.appendChild(shield);
       shield.addEventListener('click', toggleOverlay);
       makeDraggable(shield, K_SHIELD_POS);
@@ -8630,6 +8633,38 @@ function _handleActionClick() {
       </div>
     `;
   }
+
+  function toggleOverlay() {
+    const overlay = document.getElementById('giveaway-overlay');
+    if (!overlay) return;
+    overlay.classList.toggle('hidden');
+    setVal(K_OVERLAY_OPEN, !overlay.classList.contains('hidden'));
+  }
+
+  window.__FRIES_GIVEAWAY_BRIDGE__ = {
+    open: async function () {
+      ensureDom();
+      const overlay = document.getElementById('giveaway-overlay');
+      if (!overlay) return;
+      overlay.classList.remove('hidden');
+      setVal(K_OVERLAY_OPEN, true);
+      await refreshForTab(getVal(K_ACTIVE_TAB, 'overview'));
+    },
+    close: function () {
+      const overlay = document.getElementById('giveaway-overlay');
+      if (!overlay) return;
+      overlay.classList.add('hidden');
+      setVal(K_OVERLAY_OPEN, false);
+    },
+    toggle: async function () {
+      const overlay = document.getElementById('giveaway-overlay');
+      if (!overlay || overlay.classList.contains('hidden')) {
+        await this.open();
+      } else {
+        this.close();
+      }
+    }
+  };
 
   function bindEvents() {
     document.querySelectorAll('.gw-tab').forEach(el => {

@@ -33,7 +33,7 @@
   const state = {
     apps: [],
     openApps: new Map(),
-    hubOpen: readBool(K_HUB_OPEN, false),
+    hubOpen: false,
     minimizeOnOpen: false,
     mounted: false,
     lastTargetKey: '',
@@ -67,9 +67,6 @@
 
   function saveHubOpen(next) {
     state.hubOpen = !!next;
-    try {
-      GM_setValue(K_HUB_OPEN, state.hubOpen);
-    } catch (_) {}
     renderHubVisibility();
   }
 
@@ -422,7 +419,6 @@
             <div class="thub-sub">Open your apps</div>
           </div>
           <div class="thub-actions">
-            <button class="thub-btn" id="thub-refresh-btn">↻</button>
             <button class="thub-btn" id="thub-close-btn">✕</button>
           </div>
         </div>
@@ -436,10 +432,8 @@
     document.body.appendChild(root);
 
     const closeBtn = document.getElementById('thub-close-btn');
-    const refreshBtn = document.getElementById('thub-refresh-btn');
 
     if (closeBtn) closeBtn.addEventListener('click', () => saveHubOpen(false));
-    if (refreshBtn) refreshBtn.addEventListener('click', () => renderHubCards());
 
     renderHubVisibility();
     renderHubCards();
@@ -887,19 +881,19 @@
   }
 
   function startMountWatch() {
-    // PDA-safe sync. Do not remount or redraw while the hub/app overlay is open;
-    // that was causing the open/close flicker on Torn PDA.
+    // PDA-safe light sync. Never redraw the Hub while it is open.
+    // The hub opens only from 🍟 and closes only from X or opening an app.
     setInterval(() => {
       if (!document.body) return;
       if (!document.getElementById(HUB_ID)) ensureRoot();
       forceHideBottomCornerLaunchersCss();
       hideStandaloneLaunchers();
 
-      if (!state.hubOpen && !isAnyAppOverlayOpen()) {
-        ensureHeaderButton();
-      }
+      if (state.hubOpen || isAnyAppOverlayOpen()) return;
+
+      ensureHeaderButton();
       renderHubVisibility();
-    }, 4000);
+    }, 5000);
   }
 
   try { boot(); } catch (e) {}

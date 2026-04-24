@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Torn Hub + War Hub Embedded
 // @namespace    torn.hub.fries91
-// @version      0.4.5
+// @version      0.4.7
 // @description  Clean Torn app hub launcher with embedded apps.
 // @author       Fries91
 // @match        https://www.torn.com/*
@@ -34,7 +34,7 @@
     apps: [],
     openApps: new Map(),
     hubOpen: readBool(K_HUB_OPEN, false),
-    minimizeOnOpen: readBool(K_HUB_MINIMIZE_ON_OPEN, true),
+    minimizeOnOpen: false,
     mounted: false,
     lastTargetKey: '',
     observer: null,
@@ -73,9 +73,9 @@
   }
 
   function saveMinimizeOnOpen(next) {
-    state.minimizeOnOpen = !!next;
+    state.minimizeOnOpen = false;
     try {
-      GM_setValue(K_HUB_MINIMIZE_ON_OPEN, state.minimizeOnOpen);
+      GM_setValue(K_HUB_MINIMIZE_ON_OPEN, false);
     } catch (_) {}
     renderHubCards();
   }
@@ -387,7 +387,7 @@
             <div class="thub-toggle-row">
               <div>
                 <div class="thub-app-name">Hide hub after opening an app</div>
-                <div class="thub-app-desc">Keeps the screen clear on PDA and mobile.</div>
+                <div class="thub-app-desc">Hub stays open until you tap X.</div>
               </div>
               <button class="thub-btn" id="thub-minimize-toggle"></button>
             </div>
@@ -409,7 +409,7 @@
     if (closeBtn) closeBtn.addEventListener('click', () => saveHubOpen(false));
     if (refreshBtn) refreshBtn.addEventListener('click', () => renderHubCards());
     if (minimizeToggle) {
-      minimizeToggle.addEventListener('click', () => saveMinimizeOnOpen(!state.minimizeOnOpen));
+      minimizeToggle.addEventListener('click', () => saveMinimizeOnOpen(false));
     }
 
     renderHubVisibility();
@@ -446,7 +446,7 @@
     const grid = document.getElementById('thub-app-grid');
     const toggle = document.getElementById('thub-minimize-toggle');
 
-    if (toggle) toggle.textContent = state.minimizeOnOpen ? 'On' : 'Off';
+    if (toggle) toggle.textContent = 'On';
     if (!grid) return;
 
     const apps = state.apps.slice();
@@ -480,7 +480,7 @@
     const app = state.apps.find((a) => a.id === appId);
     if (!app) return;
 
-    if (state.minimizeOnOpen) saveHubOpen(false);
+    // Keep the hub open until the user taps X.
 
     app.open({
       createWindow,
@@ -819,6 +819,8 @@
   }
 
   function boot() {
+    state.minimizeOnOpen = false;
+    try { GM_setValue(K_HUB_MINIMIZE_ON_OPEN, false); } catch (_) {}
     ensureStyles();
     ensureRoot();
 

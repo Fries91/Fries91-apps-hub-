@@ -39,7 +39,8 @@
     lastTargetKey: '',
     observer: null,
     lastHubButtonTapAt: 0,
-    hubForceOpenGuard: false,
+    suppressNextClickUntil: 0,
+    hubOpenSince: 0,
   };
 
   function readBool(key, fallback) {
@@ -68,22 +69,22 @@
 
   function saveHubOpen(next) {
     state.hubOpen = !!next;
-    state.hubForceOpenGuard = !!next;
-
-    // Do not let old saved storage reopen/close the Hub on PDA.
-    try { GM_setValue(K_HUB_OPEN, false); } catch (_) {}
-
+    if (state.hubOpen) state.hubOpenSince = Date.now();
     renderHubVisibility();
+  }
 
-    // Sticky open guard: Torn PDA can redraw/tap-leak right after opening.
-    // Re-apply the open class a few times, but never close from here.
-    if (state.hubOpen) {
-      [60, 180, 420, 900].forEach(function (ms) {
-        setTimeout(function () {
-          if (state.hubOpen) renderHubVisibility();
-        }, ms);
-      });
+  function openHubFromButton(e) {
+    if (e) {
+      try { e.preventDefault(); } catch (_) {}
+      try { e.stopPropagation(); } catch (_) {}
+      try { e.stopImmediatePropagation(); } catch (_) {}
     }
+
+    const now = Date.now();
+    if (now - state.lastHubButtonTapAt < 900) return;
+    state.lastHubButtonTapAt = now;
+    state.suppressNextClickUntil = now + 1100;
+    saveHubOpen(true);
   }
 
   function saveMinimizeOnOpen(next) {
@@ -201,6 +202,8 @@
         box-shadow: 0 18px 42px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
         overflow: hidden;
         backdrop-filter: blur(8px);
+        touch-action: manipulation;
+        pointer-events: auto;
       }
 
       #${HUB_OVERLAY_ID}.open {
@@ -447,22 +450,24 @@
     `;
     document.body.appendChild(root);
 
+    const closeBtn = document.getElementById('thub-close-btn');
     const hubOverlay = document.getElementById(HUB_OVERLAY_ID);
+
     if (hubOverlay) {
-      ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend'].forEach((eventName) => {
+      ['pointerdown', 'touchstart', 'touchend'].forEach((eventName) => {
         hubOverlay.addEventListener(eventName, (e) => {
           e.stopPropagation();
         }, true);
       });
     }
 
-    const closeBtn = document.getElementById('thub-close-btn');
-
-    if (closeBtn) closeBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      saveHubOpen(false);
-    }, true);
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        saveHubOpen(false);
+      });
+    }
 
     renderHubVisibility();
     renderHubCards();
@@ -534,6 +539,11 @@
         e.stopPropagation();
         openApp(btn.getAttribute('data-open-app'));
       });
+      btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openApp(btn.getAttribute('data-open-app'));
+      }, { passive: false });
     });
   }
 
@@ -734,13 +744,16 @@
       btn.title = 'See Hub';
       btn.setAttribute('aria-label', 'See Hub');
       btn.textContent = '🍟';
+      btn.addEventListener('pointerdown', openHubFromButton, true);
+      btn.addEventListener('touchend', openHubFromButton, { capture: true, passive: false });
       btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const now = Date.now();
-        if (now - state.lastHubButtonTapAt < 650) return;
-        state.lastHubButtonTapAt = now;
-        saveHubOpen(true);
+        if (Date.now() < state.suppressNextClickUntil) {
+          try { e.preventDefault(); } catch (_) {}
+          try { e.stopPropagation(); } catch (_) {}
+          try { e.stopImmediatePropagation(); } catch (_) {}
+          return;
+        }
+        openHubFromButton(e);
       }, true);
     }
 
@@ -920,25 +933,21 @@
   }
 
   function startMountWatch() {
-    // PDA-safe light sync.
-    // While the Hub is open, do not remount, move, or hide anything except
-    // re-applying the visible state so Torn/PDA redraws cannot close it.
+    // PDA-safe light sync. Never redraw the Hub while it is open.
+    // The hub opens only from 🍟 and closes only from X or opening an app.
     setInterval(() => {
       if (!document.body) return;
       if (!document.getElementById(HUB_ID)) ensureRoot();
+      forceHideBottomCornerLaunchersCss();
 
       if (state.hubOpen) {
         renderHubVisibility();
         return;
       }
 
-      forceHideBottomCornerLaunchersCss();
       hideStandaloneLaunchers();
 
-      if (isAnyAppOverlayOpen()) {
-        renderHubVisibility();
-        return;
-      }
+      if (isAnyAppOverlayOpen()) return;
 
       ensureHeaderButton();
       renderHubVisibility();

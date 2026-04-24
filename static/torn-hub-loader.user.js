@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Torn Hub + War Hub Embedded
+// @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.5.0
-// @description  PDA friendly Torn app hub launcher with no flicker.
+// @version      0.5.1
+// @description  PDA friendly Torn app hub launcher.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*

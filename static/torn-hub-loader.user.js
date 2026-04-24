@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.5.1
+// @version      0.5.2
 // @description  PDA friendly Torn app hub launcher.
 // @author       Fries91
 // @match        https://www.torn.com/*
@@ -39,6 +39,7 @@
     lastTargetKey: '',
     observer: null,
     lastHubButtonTapAt: 0,
+    hubForceOpenGuard: false,
   };
 
   function readBool(key, fallback) {
@@ -67,7 +68,22 @@
 
   function saveHubOpen(next) {
     state.hubOpen = !!next;
+    state.hubForceOpenGuard = !!next;
+
+    // Do not let old saved storage reopen/close the Hub on PDA.
+    try { GM_setValue(K_HUB_OPEN, false); } catch (_) {}
+
     renderHubVisibility();
+
+    // Sticky open guard: Torn PDA can redraw/tap-leak right after opening.
+    // Re-apply the open class a few times, but never close from here.
+    if (state.hubOpen) {
+      [60, 180, 420, 900].forEach(function (ms) {
+        setTimeout(function () {
+          if (state.hubOpen) renderHubVisibility();
+        }, ms);
+      });
+    }
   }
 
   function saveMinimizeOnOpen(next) {
@@ -431,9 +447,22 @@
     `;
     document.body.appendChild(root);
 
+    const hubOverlay = document.getElementById(HUB_OVERLAY_ID);
+    if (hubOverlay) {
+      ['pointerdown', 'pointerup', 'click', 'touchstart', 'touchend'].forEach((eventName) => {
+        hubOverlay.addEventListener(eventName, (e) => {
+          e.stopPropagation();
+        }, true);
+      });
+    }
+
     const closeBtn = document.getElementById('thub-close-btn');
 
-    if (closeBtn) closeBtn.addEventListener('click', () => saveHubOpen(false));
+    if (closeBtn) closeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      saveHubOpen(false);
+    }, true);
 
     renderHubVisibility();
     renderHubCards();
@@ -458,7 +487,17 @@
     const shield = document.getElementById(HUB_SHIELD_ID);
     if (!overlay) return;
 
-    overlay.classList.toggle('open', !!state.hubOpen);
+    if (state.hubOpen) {
+      overlay.classList.add('open');
+      overlay.style.setProperty('display', 'flex', 'important');
+      overlay.style.setProperty('visibility', 'visible', 'important');
+      overlay.style.setProperty('opacity', '1', 'important');
+      overlay.style.setProperty('pointer-events', 'auto', 'important');
+    } else {
+      overlay.classList.remove('open');
+      overlay.style.setProperty('display', 'none', 'important');
+      overlay.style.setProperty('pointer-events', 'none', 'important');
+    }
 
     if (shield) {
       const showShield = !state.hubOpen && !isAnyAppOverlayOpen() && !shield.classList.contains('thub-floating-fallback');
@@ -881,15 +920,25 @@
   }
 
   function startMountWatch() {
-    // PDA-safe light sync. Never redraw the Hub while it is open.
-    // The hub opens only from 🍟 and closes only from X or opening an app.
+    // PDA-safe light sync.
+    // While the Hub is open, do not remount, move, or hide anything except
+    // re-applying the visible state so Torn/PDA redraws cannot close it.
     setInterval(() => {
       if (!document.body) return;
       if (!document.getElementById(HUB_ID)) ensureRoot();
+
+      if (state.hubOpen) {
+        renderHubVisibility();
+        return;
+      }
+
       forceHideBottomCornerLaunchersCss();
       hideStandaloneLaunchers();
 
-      if (state.hubOpen || isAnyAppOverlayOpen()) return;
+      if (isAnyAppOverlayOpen()) {
+        renderHubVisibility();
+        return;
+      }
 
       ensureHeaderButton();
       renderHubVisibility();

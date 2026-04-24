@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn Hub + War Hub Embedded
 // @namespace    torn.hub.fries91
-// @version      0.4.9
-// @description  Performance Torn app hub launcher with embedded apps.
+// @version      0.5.0
+// @description  PDA friendly Torn app hub launcher with no flicker.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -38,6 +38,7 @@
     mounted: false,
     lastTargetKey: '',
     observer: null,
+    lastHubButtonTapAt: 0,
   };
 
   function readBool(key, fallback) {
@@ -338,6 +339,26 @@
         margin-top: 10px;
       }
 
+
+      .thub-app-only {
+        text-align: center;
+        padding: 14px 12px;
+      }
+
+      .thub-app-only .thub-app-name {
+        font-size: 15px;
+        margin-bottom: 10px;
+      }
+
+      .thub-app-only .thub-card-actions {
+        justify-content: center;
+        margin-top: 0;
+      }
+
+      .thub-app-only .thub-open {
+        min-width: 128px;
+      }
+
       .thub-window {
         position: fixed;
         z-index: 2147483645;
@@ -397,8 +418,8 @@
       <div id="${HUB_OVERLAY_ID}">
         <div class="thub-head">
           <div>
-            <div class="thub-title">Fries Torn Hub</div>
-            <div class="thub-sub">Clean launcher for your Torn tools</div>
+            <div class="thub-title">Torn Hub</div>
+            <div class="thub-sub">Open your apps</div>
           </div>
           <div class="thub-actions">
             <button class="thub-btn" id="thub-refresh-btn">↻</button>
@@ -406,10 +427,305 @@
           </div>
         </div>
         <div class="thub-body">
-          <div class="thub-section-title">My Apps</div>
+          <div class="thub-section-title">Apps</div>
           <div class="thub-grid" id="thub-app-grid"></div>
+        </div>
+      </div>
+      <div id="${HUB_APP_LAYER_ID}"></div>
+    `;
+    document.body.appendChild(root);
 
-          <div class="thub-section-title" style="margin-top:14px;">Hub Settings</div>
+    const closeBtn = document.getElementById('thub-close-btn');
+    const refreshBtn = document.getElementById('thub-refresh-btn');
+
+    if (closeBtn) closeBtn.addEventListener('click', () => saveHubOpen(false));
+    if (refreshBtn) refreshBtn.addEventListener('click', () => renderHubCards());
+
+    renderHubVisibility();
+    renderHubCards();
+  }
+
+  function isAnyAppOverlayOpen() {
+    const war = document.getElementById('warhub-overlay');
+    const insurance = document.getElementById('si-pda-overlay');
+    const giveaway = document.getElementById('giveaway-overlay');
+    const hubWindow = document.querySelector('.thub-window');
+
+    const warOpen = !!(war && war.classList.contains('open'));
+    const insuranceOpen = !!(insurance && insurance.classList.contains('open'));
+    const giveawayOpen = !!(giveaway && !giveaway.classList.contains('hidden'));
+    const hubWindowOpen = !!(hubWindow && hubWindow.style.display !== 'none');
+
+    return warOpen || insuranceOpen || giveawayOpen || hubWindowOpen;
+  }
+
+  function renderHubVisibility() {
+    const overlay = document.getElementById(HUB_OVERLAY_ID);
+    const shield = document.getElementById(HUB_SHIELD_ID);
+    if (!overlay) return;
+
+    overlay.classList.toggle('open', !!state.hubOpen);
+
+    if (shield) {
+      const showShield = !state.hubOpen && !isAnyAppOverlayOpen() && !shield.classList.contains('thub-floating-fallback');
+      shield.style.setProperty('display', 'inline-flex', 'important');
+      shield.style.setProperty('visibility', showShield ? 'visible' : 'hidden', 'important');
+      shield.style.setProperty('opacity', showShield ? '0.98' : '0', 'important');
+      shield.style.setProperty('pointer-events', showShield ? 'auto' : 'none', 'important');
+    }
+  }
+
+  function renderHubCards() {
+    const grid = document.getElementById('thub-app-grid');
+    if (!grid) return;
+
+    const apps = state.apps.slice();
+
+    if (!apps.length) {
+      grid.innerHTML = `<div class="thub-empty">No apps are loaded yet.</div>`;
+      return;
+    }
+
+    grid.innerHTML = apps.map((app) => `
+      <div class="thub-card thub-app-only" data-app-id="${escapeHtml(app.id)}">
+        <div class="thub-app-name">${escapeHtml(app.name)}</div>
+        <div class="thub-card-actions">
+          <button class="thub-btn thub-open" data-open-app="${escapeHtml(app.id)}">Open</button>
+        </div>
+      </div>
+    `).join('');
+
+    grid.querySelectorAll('[data-open-app]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openApp(btn.getAttribute('data-open-app'));
+      });
+    });
+  }
+
+  function openApp(appId) {
+    const app = state.apps.find((a) => a.id === appId);
+    if (!app) return;
+
+    // PDA performance fix: close only the Hub menu after opening an app,
+    // so the phone is not rendering two overlays at the same time.
+    app.open({
+      createWindow,
+      closeWindow,
+      isOpen: (id) => state.openApps.has(id),
+    });
+
+    saveHubOpen(false);
+    setTimeout(renderHubVisibility, 80);
+  }
+
+  function createWindow({ id, title, width = 420, top = 110, left = null, content = '', onClose = null }) {
+    if (!id) return null;
+
+    const existing = document.getElementById(`thub-window-${id}`);
+    if (existing) {
+      existing.style.display = 'block';
+      return existing;
+    }
+
+    const layer = document.getElementById(HUB_APP_LAYER_ID);
+    if (!layer) return null;
+
+    const win = document.createElement('div');
+    win.className = 'thub-window';
+    win.id = `thub-window-${id}`;
+    win.style.width = `${width}px`;
+    win.style.top = `${top}px`;
+    win.style.left = left == null
+      ? `${Math.max(10, window.innerWidth - width - 14)}px`
+      : `${left}px`;
+
+    win.innerHTML = `
+      <div class="thub-window-head">
+        <div class="thub-app-name">${escapeHtml(title || id)}</div>
+        <div class="thub-actions">
+          <button class="thub-btn" data-min>—</button>
+          <button class="thub-btn" data-close>✕</button>
+        </div>
+      </div>
+      <div class="thub-window-body">${content}</div>
+    `;
+
+    layer.appendChild(win);
+    state.openApps.set(id, { id, onClose });
+
+    const head = win.querySelector('.thub-window-head');
+    const closeBtn = win.querySelector('[data-close]');
+    const minBtn = win.querySelector('[data-min]');
+    const body = win.querySelector('.thub-window-body');
+
+    if (closeBtn) closeBtn.addEventListener('click', () => closeWindow(id));
+    if (minBtn && body) {
+      minBtn.addEventListener('click', () => {
+        body.style.display = body.style.display === 'none' ? 'block' : 'none';
+      });
+    }
+
+    if (head) makeDraggableWindow(head, win);
+    return win;
+  }
+
+  function closeWindow(id) {
+    const win = document.getElementById(`thub-window-${id}`);
+    if (win) win.remove();
+
+    const entry = state.openApps.get(id);
+    if (entry && typeof entry.onClose === 'function') {
+      try {
+        entry.onClose();
+      } catch (_) {}
+    }
+    state.openApps.delete(id);
+  }
+
+  function makeDraggableWindow(handle, target) {
+    let startX = 0;
+    let startY = 0;
+    let startLeft = 0;
+    let startTop = 0;
+    let dragging = false;
+
+    handle.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = target.getBoundingClientRect();
+      startLeft = rect.left;
+      startTop = rect.top;
+      handle.setPointerCapture(e.pointerId);
+    });
+
+    handle.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const nextLeft = Math.max(6, startLeft + (e.clientX - startX));
+      const nextTop = Math.max(6, startTop + (e.clientY - startY));
+      target.style.left = `${nextLeft}px`;
+      target.style.top = `${nextTop}px`;
+    });
+
+    const finish = () => {
+      dragging = false;
+    };
+
+    handle.addEventListener('pointerup', finish);
+    handle.addEventListener('pointercancel', finish);
+  }
+
+  function isVisibleElement(el) {
+    if (!el || !el.isConnected) return false;
+    const rect = el.getBoundingClientRect();
+    const style = window.getComputedStyle(el);
+    return (
+      style.display !== 'none' &&
+      style.visibility !== 'hidden' &&
+      parseFloat(style.opacity || '1') > 0 &&
+      rect.width > 0 &&
+      rect.height > 0 &&
+      rect.bottom > 0 &&
+      rect.top < window.innerHeight
+    );
+  }
+
+  function targetKey(el) {
+    if (!el) return '';
+    const cls = typeof el.className === 'string' ? el.className : '';
+    return `${el.tagName}|${el.id || ''}|${cls}`;
+  }
+
+  function getHeaderMountTarget() {
+    // PDA performance fix: check known Torn header/status rows first.
+    const directSelectors = [
+      '.points-mobile',
+      '[class*="points-mobile"]',
+      '[class*="user-information"]',
+      '[class*="info-row"]',
+      '[class*="status"]',
+      '[class*="icons"]'
+    ];
+
+    for (const sel of directSelectors) {
+      try {
+        const found = Array.from(document.querySelectorAll(sel)).find((el) => {
+          if (!isVisibleElement(el)) return false;
+          const rect = el.getBoundingClientRect();
+          return rect.top < 460 && rect.height <= 95 && rect.width >= 80;
+        });
+        if (found) return found;
+      } catch (_) {}
+    }
+
+    // Fallback is intentionally small. Full document scans were freezing PDA.
+    const candidates = Array.from(document.querySelectorAll('div, ul, nav, section')).slice(0, 140);
+    let best = null;
+    let bestScore = 999999;
+
+    for (const el of candidates) {
+      if (!isVisibleElement(el)) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.top > 460 || rect.height > 95 || rect.width < 80) continue;
+
+      const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (/Messages|Events|Awards|Battle Stats|Job Information|Property Information|bets worth|upcoming/i.test(text)) continue;
+
+      const hasMoney = text.includes('$');
+      const hasPoints = /\bP\s*\d+/i.test(text) || /Points\s*:?\s*\d+/i.test(text);
+      const hasMerits = /\bMerits\s*:?\s*\d+/i.test(text) || /\bM\s*\d+/i.test(text);
+      if (!hasMoney && !hasPoints && !hasMerits) continue;
+
+      let score = text.length + rect.top;
+      if (hasMoney) score -= 220;
+      if (hasPoints) score -= 90;
+      if (hasMerits) score -= 90;
+      if (score < bestScore) {
+        best = el;
+        bestScore = score;
+      }
+    }
+
+    return best;
+  }
+
+  function ensureHeaderButton() {
+    let btn = document.getElementById(HUB_SHIELD_ID);
+
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = HUB_SHIELD_ID;
+      btn.type = 'button';
+      btn.title = 'See Hub';
+      btn.setAttribute('aria-label', 'See Hub');
+      btn.textContent = '🍟';
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const now = Date.now();
+        if (now - state.lastHubButtonTapAt < 650) return;
+        state.lastHubButtonTapAt = now;
+        saveHubOpen(true);
+      }, true);
+    }
+
+    const target = getHeaderMountTarget();
+
+    if (!target) {
+      btn.classList.add('thub-floating-fallback');
+      if (!btn.isConnected) document.body.appendChild(btn);
+      btn.style.setProperty('display', 'none', 'important');
+      btn.style.setProperty('visibility', 'hidden', 'important');
+      btn.style.setProperty('pointer-events', 'none', 'important');
+      return false;
+    }
+
+    btn.classList.remove('thub-floating-fallback');
+    btn.style.removeProperty('display');
+
+    let slot = document.getElementById(HUle" style="margin-top:14px;">Hub Settings</div>
           <div class="thub-card">
             <div class="thub-toggle-row">
               <div>

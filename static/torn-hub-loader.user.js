@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn Hub + War Hub Embedded
 // @namespace    torn.hub.fries91
-// @version      0.4.8
-// @description  Performance Torn app hub launcher with embedded apps.
+// @version      0.5.0
+// @description  Clean Torn app hub launcher with centered apps.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -248,50 +248,42 @@
       }
 
       .thub-card {
-        border: 1px solid rgba(205,164,74,.16);
-        border-radius: 15px;
-        padding: 12px;
-        background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.035));
+        border: 1px solid rgba(205,164,74,.18);
+        border-radius: 16px;
+        padding: 14px;
+        background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.035));
+        text-align: center;
       }
 
       .thub-card-top {
         display: flex;
         align-items: center;
-        gap: 10px;
+        justify-content: center;
+        text-align: center;
       }
 
-      .thub-app-icon {
-        width: 42px;
-        height: 42px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 12px;
-        background: radial-gradient(circle at 35% 25%, rgba(205,164,74,.24), rgba(120,18,18,.20));
-        border: 1px solid rgba(205,164,74,.14);
-        font-size: 20px;
-        flex: 0 0 42px;
+      .thub-app-icon,
+      .thub-app-desc {
+        display: none !important;
       }
 
       .thub-app-name {
-        font-size: 14px;
-        font-weight: 800;
-      }
-
-      .thub-app-desc {
-        font-size: 12px;
-        opacity: .8;
-        margin-top: 3px;
+        font-size: 15px;
+        font-weight: 900;
+        text-align: center;
+        letter-spacing: .2px;
       }
 
       .thub-card-actions {
         display: flex;
+        justify-content: center;
         gap: 8px;
         margin-top: 10px;
         flex-wrap: wrap;
       }
 
       .thub-open {
+        min-width: 120px;
         background: linear-gradient(180deg, #b72525, #761313);
         border-color: rgba(244,217,143,.28);
       }
@@ -370,7 +362,7 @@
       <div id="${HUB_OVERLAY_ID}">
         <div class="thub-head">
           <div>
-            <div class="thub-title">Fries Torn Hub</div>
+            <div class="thub-title">Fries App Hub</div>
             <div class="thub-sub">Clean launcher for your Torn tools</div>
           </div>
           <div class="thub-actions">
@@ -459,11 +451,7 @@
     grid.innerHTML = apps.map((app) => `
       <div class="thub-card" data-app-id="${escapeHtml(app.id)}">
         <div class="thub-card-top">
-          <div class="thub-app-icon">${escapeHtml(app.icon || '📦')}</div>
-          <div>
-            <div class="thub-app-name">${escapeHtml(app.name)}</div>
-            <div class="thub-app-desc">${escapeHtml(app.description || '')}</div>
-          </div>
+          <div class="thub-app-name">${escapeHtml(app.name)}</div>
         </div>
         <div class="thub-card-actions">
           <button class="thub-btn thub-open" data-open-app="${escapeHtml(app.id)}">Open</button>
@@ -802,7 +790,7 @@
 
         registerApp({
       id: 'lottery',
-      name: 'Giveaway / Lottery',
+      name: 'Giveaway',
       icon: '🎟️',
       description: 'Giveaway entries, draw wheel, winners, countdowns, and admin controls.',
       open: ({ createWindow }) => {
@@ -818,11 +806,11 @@
 
         createWindow({
           id: 'lottery-error',
-          title: 'Giveaway / Lottery',
+          title: 'Giveaway',
           width: 420,
           content: `
             <div class="thub-card">
-              <div class="thub-app-name">Giveaway / Lottery could not load</div>
+              <div class="thub-app-name">Giveaway could not load</div>
               <div class="thub-app-desc">The embedded giveaway module bridge was not found in this merged build.</div>
             </div>
           `,
@@ -854,21 +842,16 @@
   }
 
   function startMountWatch() {
-    // PDA performance fix: no full-page MutationObserver.
-    // Torn changes the DOM a lot; observing every change was causing freezes.
+    // Light PDA-safe sync. This restores 🍟 after an app overlay closes
+    // without using the heavy full-page MutationObserver.
     setInterval(() => {
       if (!document.body) return;
       if (!document.getElementById(HUB_ID)) ensureRoot();
       forceHideBottomCornerLaunchersCss();
       hideStandaloneLaunchers();
-
-      const btn = document.getElementById(HUB_SHIELD_ID);
-      const slot = document.getElementById(HUB_STATUS_SLOT_ID);
-      if (!btn || !slot || !btn.isConnected || !slot.isConnected) {
-        ensureHeaderButton();
-        renderHubVisibility();
-      }
-    }, 6000);
+      ensureHeaderButton();
+      renderHubVisibility();
+    }, 2500);
   }
 
   try { boot(); } catch (e) {}

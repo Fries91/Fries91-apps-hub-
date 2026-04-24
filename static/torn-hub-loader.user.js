@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Torn Hub + War Hub Embedded
 // @namespace    torn.hub.fries91
-// @version      0.4.7
-// @description  Clean Torn app hub launcher with embedded apps.
+// @version      0.4.8
+// @description  Performance Torn app hub launcher with embedded apps.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -480,13 +480,16 @@
     const app = state.apps.find((a) => a.id === appId);
     if (!app) return;
 
-    // Keep the hub open until the user taps X.
-
+    // PDA performance fix: close only the Hub menu after opening an app,
+    // so the phone is not rendering two overlays at the same time.
     app.open({
       createWindow,
       closeWindow,
       isOpen: (id) => state.openApps.has(id),
     });
+
+    saveHubOpen(false);
+    setTimeout(renderHubVisibility, 80);
   }
 
   function createWindow({ id, title, width = 420, top = 110, left = null, content = '', onClose = null }) {
@@ -608,46 +611,56 @@
   }
 
   function getHeaderMountTarget() {
-    const candidates = Array.from(document.querySelectorAll('div, ul, section, nav, li, span'));
-    const matches = [];
+    // PDA performance fix: check known Torn header/status rows first.
+    const directSelectors = [
+      '.points-mobile',
+      '[class*="points-mobile"]',
+      '[class*="user-information"]',
+      '[class*="info-row"]',
+      '[class*="status"]',
+      '[class*="icons"]'
+    ];
+
+    for (const sel of directSelectors) {
+      try {
+        const found = Array.from(document.querySelectorAll(sel)).find((el) => {
+          if (!isVisibleElement(el)) return false;
+          const rect = el.getBoundingClientRect();
+          return rect.top < 460 && rect.height <= 95 && rect.width >= 80;
+        });
+        if (found) return found;
+      } catch (_) {}
+    }
+
+    // Fallback is intentionally small. Full document scans were freezing PDA.
+    const candidates = Array.from(document.querySelectorAll('div, ul, nav, section')).slice(0, 140);
+    let best = null;
+    let bestScore = 999999;
 
     for (const el of candidates) {
       if (!isVisibleElement(el)) continue;
-
       const rect = el.getBoundingClientRect();
+      if (rect.top > 460 || rect.height > 95 || rect.width < 80) continue;
+
       const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
-      const cls = typeof el.className === 'string' ? el.className : '';
-      const id = String(el.id || '');
+      if (/Messages|Events|Awards|Battle Stats|Job Information|Property Information|bets worth|upcoming/i.test(text)) continue;
 
       const hasMoney = text.includes('$');
       const hasPoints = /\bP\s*\d+/i.test(text) || /Points\s*:?\s*\d+/i.test(text);
-      const hasMerits = /\bMerits\s*:?\s*\d+/i.test(text) || /\bMerits\b/i.test(text) || /\bM\s*\d+/i.test(text);
-      const looksLikeStatusRow = /points-mobile|status|user-information|info-row|user-info|icons|header/i.test(cls + ' ' + id);
-      const isBadRow = /Messages|Events|Awards|Battle Stats|Job Information|Property Information|male|female/i.test(text);
-      const isTicker = text.length > 85 || /bets worth|upcoming/i.test(text);
+      const hasMerits = /\bMerits\s*:?\s*\d+/i.test(text) || /\bM\s*\d+/i.test(text);
+      if (!hasMoney && !hasPoints && !hasMerits) continue;
 
-      if (isBadRow || isTicker) continue;
-      if (!hasMoney && !hasPoints && !hasMerits && !looksLikeStatusRow) continue;
-      if (rect.height > 90 || rect.width < 80) continue;
-
-      let score = 0;
-      score += Math.max(0, text.length || 0);
-      if (hasMoney) score -= 240;
-      if (hasPoints) score -= 80;
-      if (hasMerits) score -= 80;
-      if (looksLikeStatusRow) score -= 180;
-      if (rect.top > 250 && rect.top < 460) score -= 120;
-      if (rect.top < 120) score += 70;
-
-      matches.push({ el, score });
+      let score = text.length + rect.top;
+      if (hasMoney) score -= 220;
+      if (hasPoints) score -= 90;
+      if (hasMerits) score -= 90;
+      if (score < bestScore) {
+        best = el;
+        bestScore = score;
+      }
     }
 
-    matches.sort((a, b) => a.score - b.score);
-
-    if (!matches.length) return null;
-
-    const locked = matches.find((m) => targetKey(m.el) === state.lastTargetKey);
-    return (locked && isVisibleElement(locked.el)) ? locked.el : matches[0].el;
+    return best;
   }
 
   function ensureHeaderButton() {
@@ -841,27 +854,21 @@
   }
 
   function startMountWatch() {
+    // PDA performance fix: no full-page MutationObserver.
+    // Torn changes the DOM a lot; observing every change was causing freezes.
     setInterval(() => {
       if (!document.body) return;
       if (!document.getElementById(HUB_ID)) ensureRoot();
-      ensureHeaderButton();
       forceHideBottomCornerLaunchersCss();
       hideStandaloneLaunchers();
-      renderHubVisibility();
-    }, 1500);
 
-    if (!state.observer) {
-      state.observer = new MutationObserver(() => {
+      const btn = document.getElementById(HUB_SHIELD_ID);
+      const slot = document.getElementById(HUB_STATUS_SLOT_ID);
+      if (!btn || !slot || !btn.isConnected || !slot.isConnected) {
         ensureHeaderButton();
-        forceHideBottomCornerLaunchersCss();
-        hideStandaloneLaunchers();
         renderHubVisibility();
-      });
-      state.observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-      });
-    }
+      }
+    }, 6000);
   }
 
   try { boot(); } catch (e) {}

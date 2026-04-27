@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.6.1
+// @version      0.6.2
 // @description  PDA friendly Torn app hub launcher. Simple open and close only. Header button restore fix.
 // @author       Fries91
 // @match        https://www.torn.com/*
@@ -14,6 +14,9 @@
 // @grant        GM_xmlhttpRequest
 // @connect      torn-war-bot.onrender.com
 // @connect      ffscouter.com
+// @connect      raw.githubusercontent.com
+// @connect      xanax-insurance.onrender.com
+// @connect      sinner-s-lottery.onrender.com
 // @run-at       document-end
 // ==/UserScript==
 
@@ -895,6 +898,93 @@
   }
 
 
+  function showModuleMessage(createWindow, id, title, htmlContent) {
+    const existing = document.getElementById(`thub-window-${id}`);
+    if (existing) {
+      const body = existing.querySelector('.thub-window-body');
+      if (body) body.innerHTML = htmlContent;
+      existing.style.display = 'block';
+      return existing;
+    }
+    return createWindow({ id, title, width: 420, content: htmlContent });
+  }
+
+  function openVisibleOverlayById(ids) {
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      try {
+        el.classList.add('open');
+        el.classList.remove('hidden');
+        el.style.setProperty('display', 'flex', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+        el.style.setProperty('opacity', '1', 'important');
+        el.style.setProperty('pointer-events', 'auto', 'important');
+        return true;
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  function loadRemoteUserscriptOnce(key, urls) {
+    const flag = `__FRIES_REMOTE_LOADING_${key}__`;
+    const done = `__FRIES_REMOTE_LOADED_${key}__`;
+    if (window[done]) return Promise.resolve(true);
+    if (window[flag]) return window[flag];
+    const tryUrl = (index) => new Promise((resolve) => {
+      if (index >= urls.length) { resolve(false); return; }
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url: urls[index],
+        timeout: 20000,
+        onload: function (resp) {
+          const code = String((resp && resp.responseText) || '');
+          if (!resp || resp.status < 200 || resp.status >= 300 || code.length < 500) { tryUrl(index + 1).then(resolve); return; }
+          try {
+            new Function(code + '\n//# sourceURL=' + urls[index])();
+            window[done] = true;
+            resolve(true);
+          } catch (_) { tryUrl(index + 1).then(resolve); }
+        },
+        onerror: function () { tryUrl(index + 1).then(resolve); },
+        ontimeout: function () { tryUrl(index + 1).then(resolve); }
+      });
+    });
+    window[flag] = tryUrl(0).then((ok) => { if (!ok) window[flag] = null; return ok; });
+    return window[flag];
+  }
+
+  function openExternalModule(opts, createWindow) {
+    const title = opts.title;
+    const bridgeName = opts.bridgeName;
+    const overlayIds = opts.overlayIds || [];
+    const launcherIds = opts.launcherIds || [];
+    const urls = opts.urls || [];
+    const errorId = opts.errorId;
+    function openBridge() {
+      const bridge = window[bridgeName];
+      if (bridge && typeof bridge.open === 'function') {
+        launcherIds.forEach((id) => {
+          try { const launcher = document.getElementById(id); if (launcher) launcher.style.setProperty('display', 'none', 'important'); } catch (_) {}
+        });
+        bridge.open();
+        setTimeout(renderHubVisibility, 120);
+        return true;
+      }
+      return false;
+    }
+    if (openBridge()) return;
+    if (openVisibleOverlayById(overlayIds)) { setTimeout(renderHubVisibility, 120); return; }
+    showModuleMessage(createWindow, `${errorId}-loading`, title, `<div class="thub-card"><div class="thub-app-name">Opening ${escapeHtml(title)}...</div><div class="thub-app-desc">Loading the app module. If this stays here, make sure that app script is installed or added into this Hub build.</div></div>`);
+    loadRemoteUserscriptOnce(errorId, urls).then(function () {
+      setTimeout(function () {
+        closeWindow(`${errorId}-loading`);
+        if (openBridge()) return;
+        if (openVisibleOverlayById(overlayIds)) return;
+        showModuleMessage(createWindow, `${errorId}-error`, title, `<div class="thub-card"><div class="thub-app-name">${escapeHtml(title)} is not loaded yet</div><div class="thub-app-desc">The Hub button is working, but this app is not embedded in the current Hub file and no bridge was found. Send me the latest ${escapeHtml(title)} userscript and I can merge it directly into the Hub like War Hub.</div></div>`);
+      }, 350);
+    });
+  }
   function openWarHubModule(createWindow) {
     if (window.__FRIES_WARHUB_BRIDGE__ && typeof window.__FRIES_WARHUB_BRIDGE__.open === 'function') {
       hideStandaloneLaunchers();
@@ -933,27 +1023,17 @@
       icon: '💊',
       description: 'Insurance plans, activations, claims, payouts, and admin tools.',
       open: ({ createWindow }) => {
-        if (window.__FRIES_INSURANCE_BRIDGE__ && typeof window.__FRIES_INSURANCE_BRIDGE__.open === 'function') {
-          try {
-            const launcher = document.getElementById('si-pda-launcher');
-            if (launcher) launcher.style.display = 'none';
-          } catch (_) {}
-          window.__FRIES_INSURANCE_BRIDGE__.open();
-          setTimeout(renderHubVisibility, 50);
-          return;
-        }
-
-        createWindow({
-          id: 'insurance-error',
+        openExternalModule({
           title: 'Sinner Insurance',
-          width: 420,
-          content: `
-            <div class="thub-card">
-              <div class="thub-app-name">Sinner Insurance could not load</div>
-              <div class="thub-app-desc">The embedded insurance module bridge was not found in this merged build.</div>
-            </div>
-          `,
-        });
+          bridgeName: '__FRIES_INSURANCE_BRIDGE__',
+          errorId: 'insurance',
+          overlayIds: ['si-pda-overlay', 'sinners-insurance-overlay', 'xanax-insurance-overlay', 'si-overlay'],
+          launcherIds: ['si-pda-launcher', 'sinners-insurance-launcher'],
+          urls: [
+            'https://raw.githubusercontent.com/Fries91/xanax-insurance/main/static/xanax-insurance.user.js',
+            'https://raw.githubusercontent.com/Fries91/xanax-insurance/main/static/xanax-insurance-pc.user.js'
+          ]
+        }, createWindow);
       },
     });
 
@@ -963,27 +1043,18 @@
       icon: '🎟️',
       description: 'Giveaway entries, draw wheel, winners, countdowns, and admin controls.',
       open: ({ createWindow }) => {
-        if (window.__FRIES_GIVEAWAY_BRIDGE__ && typeof window.__FRIES_GIVEAWAY_BRIDGE__.open === 'function') {
-          try {
-            const launcher = document.getElementById('giveaway-shield');
-            if (launcher) launcher.style.display = 'none';
-          } catch (_) {}
-          window.__FRIES_GIVEAWAY_BRIDGE__.open();
-          setTimeout(renderHubVisibility, 50);
-          return;
-        }
-
-        createWindow({
-          id: 'lottery-error',
+        openExternalModule({
           title: 'Giveaway',
-          width: 420,
-          content: `
-            <div class="thub-card">
-              <div class="thub-app-name">Giveaway could not load</div>
-              <div class="thub-app-desc">The embedded giveaway module bridge was not found in this merged build.</div>
-            </div>
-          `,
-        });
+          bridgeName: '__FRIES_GIVEAWAY_BRIDGE__',
+          errorId: 'giveaway',
+          overlayIds: ['giveaway-overlay', 'sinners-lottery-overlay', 'lottery-overlay'],
+          launcherIds: ['giveaway-shield', 'lottery-shield'],
+          urls: [
+            'https://raw.githubusercontent.com/Fries91/Sinner-s-Lottery/main/static/giveaway.user.js',
+            'https://raw.githubusercontent.com/Fries91/Sinner-s-Lottery/main/static/sinners-lottery.user.js',
+            'https://raw.githubusercontent.com/Fries91/Sinner-s-Lottery/main/static/lottery.user.js'
+          ]
+        }, createWindow);
       },
     });
   }

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.5.7
-// @description  PDA friendly Torn app hub launcher with stable centered Fries91 faction apps button.
+// @version      0.5.8
+// @description  PDA friendly Torn app hub launcher with stable close and centered Fries91 faction apps button.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -73,8 +73,9 @@
     const wantsOpen = !!next;
     const now = Date.now();
 
-    // Do not let delayed PDA/Torn touch/click events reopen the Hub right after X/Open.
-    if (wantsOpen && now < state.manualCloseLockUntil && source !== 'button' && source !== 'menu') return;
+    // Hard stop: after X or app-open closes the Hub, no delayed PDA click/touch
+    // is allowed to reopen it for a few seconds.
+    if (wantsOpen && now < state.manualCloseLockUntil) return;
 
     state.hubOpen = wantsOpen;
     if (state.hubOpen) {
@@ -82,7 +83,8 @@
       state.intentionalClose = false;
     } else {
       state.intentionalClose = true;
-      state.manualCloseLockUntil = now + 1600;
+      state.manualCloseLockUntil = Math.max(state.manualCloseLockUntil || 0, now + 6000);
+      state.suppressNextClickUntil = Math.max(state.suppressNextClickUntil || 0, now + 1600);
     }
     renderHubVisibility();
   }
@@ -95,12 +97,26 @@
     }
 
     const now = Date.now();
+    if (state.hubOpen) return;
     if (now < state.manualCloseLockUntil) return;
     if (isAnyAppOverlayOpen()) return;
     if (now - state.lastHubButtonTapAt < 900) return;
     state.lastHubButtonTapAt = now;
     state.suppressNextClickUntil = now + 1100;
     saveHubOpen(true, 'button');
+  }
+
+
+  function closeHubFromButton(e) {
+    if (e) {
+      try { e.preventDefault(); } catch (_) {}
+      try { e.stopPropagation(); } catch (_) {}
+      try { e.stopImmediatePropagation(); } catch (_) {}
+    }
+    state.manualCloseLockUntil = Date.now() + 6000;
+    state.suppressNextClickUntil = Date.now() + 1800;
+    saveHubOpen(false, 'close');
+    setTimeout(renderHubVisibility, 30);
   }
 
   function saveMinimizeOnOpen(next) {
@@ -152,8 +168,8 @@
         width: 100%;
         min-width: 0;
         max-width: none;
-        height: 22px;
-        border-radius: 7px;
+        height: 20px;
+        border-radius: 6px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -204,9 +220,9 @@
         padding: 1px 8px;
         width: 100%;
         max-width: 100vw;
-        height: 26px;
-        min-height: 26px;
-        max-height: 26px;
+        height: 24px;
+        min-height: 24px;
+        max-height: 24px;
         box-sizing: border-box;
         background: transparent;
         overflow: visible;
@@ -482,8 +498,12 @@
     if (hubOverlay) {
       ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'touchstart', 'touchmove', 'touchend'].forEach((eventName) => {
         hubOverlay.addEventListener(eventName, (e) => {
+          const target = e.target;
+          // Do not block the X button or app Open buttons. Capture-level blocking here
+          // was why X sometimes did not close on PDA.
+          if (target && target.closest && (target.closest('#thub-close-btn') || target.closest('[data-open-app]'))) return;
           e.stopPropagation();
-        }, true);
+        }, false);
       });
     }
 
@@ -502,10 +522,8 @@
     });
 
     if (closeBtn) {
-      closeBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        saveHubOpen(false, 'close');
+      ['pointerup', 'click', 'touchend'].forEach((eventName) => {
+        closeBtn.addEventListener(eventName, closeHubFromButton, true);
       });
     }
 

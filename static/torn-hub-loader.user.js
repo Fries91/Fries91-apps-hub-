@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.5.6
+// @version      0.5.7
 // @description  PDA friendly Torn app hub launcher with stable centered Fries91 faction apps button.
 // @author       Fries91
 // @match        https://www.torn.com/*
@@ -151,9 +151,9 @@
         z-index: 2;
         width: 100%;
         min-width: 0;
-        max-width: min(650px, calc(100vw - 28px));
-        height: 28px;
-        border-radius: 8px;
+        max-width: none;
+        height: 22px;
+        border-radius: 7px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -161,15 +161,15 @@
         border: 1px solid rgba(244,217,143,.42);
         box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 7px rgba(0,0,0,.28);
         color: #f7ead0;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 900;
-        letter-spacing: .15px;
+        letter-spacing: .12px;
         line-height: 1;
         text-align: center;
         white-space: nowrap;
         user-select: none;
         cursor: pointer;
-        padding: 0 12px;
+        padding: 0 8px;
         margin: 0;
         flex: 1 1 auto;
         transform: none;
@@ -201,12 +201,12 @@
         align-items: center;
         justify-content: center;
         margin: 0;
-        padding: 2px 14px;
+        padding: 1px 8px;
         width: 100%;
         max-width: 100vw;
-        height: 34px;
-        min-height: 34px;
-        max-height: 34px;
+        height: 26px;
+        min-height: 26px;
+        max-height: 26px;
         box-sizing: border-box;
         background: transparent;
         overflow: visible;
@@ -801,7 +801,7 @@
       btn.type = 'button';
       btn.title = '🍟 Fries91\'s Faction Apps';
       btn.setAttribute('aria-label', 'Fries91 faction apps');
-      btn.textContent = "🍟Fries91's Faction Apps";
+      btn.textContent = "🍟 Fries91's Faction Apps";
       btn.addEventListener('pointerup', openHubFromButton, true);
       btn.addEventListener('click', (e) => {
         if (Date.now() < state.suppressNextClickUntil) {
@@ -861,8 +861,13 @@
 
   function hideStandaloneLaunchers() {
     try {
-      var ids = ['warhub-shield','warhub-badge','si-pda-launcher','giveaway-shield'];
-      ids.forEach(function(id){
+      // Fully remove War/Chain launcher nodes from the Hub build.
+      // Insurance/Giveaway launchers are only hidden so their bridges can still work.
+      ['warhub-shield','warhub-badge'].forEach(function(id){
+        var el = document.getElementById(id);
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+      });
+      ['si-pda-launcher','giveaway-shield'].forEach(function(id){
         var el = document.getElementById(id);
         if (!el) return;
         el.style.setProperty('display', 'none', 'important');
@@ -3371,14 +3376,10 @@ function _handleTabClick() {
             if (old && old.parentNode) old.parentNode.removeChild(old);
         });
 
-        shield = document.createElement('div');
-        shield.id = 'warhub-shield';
-        shield.innerHTML = '<button type="button" aria-label="Open War and Chain">⚔️</button>';
-shield.setAttribute('aria-label', 'Open War and Chain');
-        shield.setAttribute('title', 'War and Chain');
-
-        badge = document.createElement('div');
-        badge.id = 'warhub-badge';
+        // Hub build: do not create the standalone War and Chain sword launcher.
+        // War opens only from 🍟 Fries91's Faction Apps through __FRIES_WARHUB_BRIDGE__.
+        shield = null;
+        badge = null;
         
         overlay = document.createElement('div');
         overlay.id = 'warhub-overlay';
@@ -3400,23 +3401,9 @@ shield.setAttribute('aria-label', 'Open War and Chain');
             '</div>'
         ].join('');
 
-        document.body.appendChild(shield);
-        document.body.appendChild(badge);
         document.body.appendChild(overlay);
 
-        applyShieldPos();
         applyOverlayPos();
-        updateBadge();
-        positionBadge();
-
-        function shieldTapBlocked() {
-            return false;
-        }
-
-        bindTap(shield, function () {
-            if (shieldTapBlocked()) return;
-            toggleOverlay();
-        });
 
         bindTap(overlay.querySelector('#warhub-close'), function () {
             setOverlayOpen(false);
@@ -6074,10 +6061,9 @@ function _handleActionClick() {
             return;
         }
 
-        var hasShield = !!document.getElementById('warhub-shield');
         var hasOverlay = !!document.getElementById('warhub-overlay');
 
-        if (!hasShield || !hasOverlay || !shield || !overlay) {
+        if (!hasOverlay || !overlay) {
             mounted = false;
             shield = null;
             badge = null;
@@ -6096,7 +6082,7 @@ function _handleActionClick() {
             try {
                 if (!document.body) return;
 
-                if (!document.getElementById('warhub-shield') || !document.getElementById('warhub-overlay')) {
+                if (!document.getElementById('warhub-overlay')) {
                     mounted = false;
                     shield = null;
                     badge = null;
@@ -6104,8 +6090,7 @@ function _handleActionClick() {
                     ensureMounted();
                     renderBody();
                 } else {
-                    applyShieldPos();
-                    positionBadge();
+                    // No standalone War/Chain icon in the Hub build.
                 }
             } catch (err) {
                 

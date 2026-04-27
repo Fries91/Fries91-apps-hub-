@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.6.0
-// @description  PDA friendly Torn app hub launcher. Simple open and close only.
+// @version      0.6.1
+// @description  PDA friendly Torn app hub launcher. Simple open and close only. Header button restore fix.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -140,8 +140,8 @@
         width: 100%;
         min-width: 0;
         max-width: none;
-        height: 16px;
-        border-radius: 4px;
+        height: 14px;
+        border-radius: 3px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -149,7 +149,7 @@
         border: 1px solid rgba(244,217,143,.42);
         box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 7px rgba(0,0,0,.28);
         color: #f7ead0;
-        font-size: 10px;
+        font-size: 9.5px;
         font-weight: 900;
         letter-spacing: .12px;
         line-height: 1;
@@ -157,7 +157,7 @@
         white-space: nowrap;
         user-select: none;
         cursor: pointer;
-        padding: 0 6px;
+        padding: 0 4px;
         margin: 0;
         flex: 1 1 auto;
         transform: none;
@@ -189,12 +189,12 @@
         align-items: center;
         justify-content: center;
         margin: 0;
-        padding: 1px 8px;
+        padding: 1px 6px;
         width: 100%;
         max-width: 100vw;
-        height: 20px;
-        min-height: 20px;
-        max-height: 20px;
+        height: 18px;
+        min-height: 18px;
+        max-height: 18px;
         box-sizing: border-box;
         background: transparent;
         overflow: visible;
@@ -694,13 +694,35 @@
   }
 
   function headerText(el) {
-    return String((el && (el.innerText || el.textContent)) || '').replace(/\s+/g, ' ').trim();
+    if (!el) return '';
+    const parts = [];
+    try { parts.push(el.innerText || el.textContent || ''); } catch (_) {}
+    try { parts.push(el.getAttribute('aria-label') || ''); } catch (_) {}
+    try { parts.push(el.getAttribute('title') || ''); } catch (_) {}
+    try { parts.push(el.id || ''); } catch (_) {}
+    try { parts.push(typeof el.className === 'string' ? el.className : ''); } catch (_) {}
+    try {
+      Array.from(el.querySelectorAll('[aria-label], [title], a, button, li, span')).slice(0, 80).forEach((child) => {
+        parts.push(child.getAttribute('aria-label') || '');
+        parts.push(child.getAttribute('title') || '');
+        parts.push(child.innerText || child.textContent || '');
+        parts.push(child.id || '');
+        parts.push(typeof child.className === 'string' ? child.className : '');
+      });
+    } catch (_) {}
+    return parts.join(' ').replace(/\s+/g, ' ').trim();
   }
 
   function navWordCount(txt) {
     txt = String(txt || '').toLowerCase();
-    const words = ['messages', 'events', 'awards', 'home', 'items', 'city', 'wheel', 'rr', 'stocks'];
-    return words.reduce((n, w) => n + (txt.includes(w) ? 1 : 0), 0);
+    const words = ['messages', 'events', 'awards', 'home', 'items', 'city', 'wheel', 'stocks', 'forums', 'missions', 'news', 'traveling', 'travel', 'job'];
+    let count = 0;
+    words.forEach((w) => { if (txt.includes(w)) count += 1; });
+    return count;
+  }
+
+  function isHeaderClassHint(txt) {
+    return /areas|menu|nav|links|icons|navigation|header|top|row|tabs|panel/i.test(String(txt || ''));
   }
 
   function isLowerHeaderHost(el) {
@@ -709,41 +731,57 @@
 
     let rect;
     try { rect = el.getBoundingClientRect(); } catch (_) { return false; }
-    if (!rect || rect.width < 260 || rect.height < 24 || rect.height > 105) return false;
+    if (!rect || rect.width < 220 || rect.height < 16 || rect.height > 120) return false;
 
-    // This targets the Torn icon/menu strip where the War sword icon used to sit above.
-    const maxTop = Math.min(430, Math.max(255, window.innerHeight * 0.43));
-    if (rect.top < 70 || rect.top > maxTop) return false;
+    // Header-only: never use bottom corner or page body. This is the same area the old sword header strip used.
+    const maxTop = Math.min(520, Math.max(300, window.innerHeight * 0.52));
+    if (rect.top < 45 || rect.top > maxTop) return false;
 
     const txt = headerText(el);
-    if (/Battle Stats|Job Information|Property Information|User Information|FairFight|bets worth|upcoming/i.test(txt)) return false;
+    if (/Battle Stats|Job Information|Property Information|User Information|FairFight|bets worth|upcoming|bazaar|market/i.test(txt)) return false;
 
-    return navWordCount(txt) >= 3;
+    const navCount = navWordCount(txt);
+    if (navCount >= 2) return true;
+
+    // PDA sometimes renders these as icon-only buttons, so text can be empty.
+    // This still stays header-only and does not create any fallback launcher.
+    if (isHeaderClassHint(txt) && rect.width >= 280 && rect.height <= 95 && rect.top >= 70) return true;
+
+    return false;
   }
 
   function scoreLowerHeaderHost(el) {
     const rect = el.getBoundingClientRect();
     const txt = headerText(el);
-    let score = navWordCount(txt) * 50;
-    if (rect.top >= 100 && rect.top <= 370) score += 35;
-    if (rect.height <= 70) score += 20;
+    let score = navWordCount(txt) * 70;
+    if (isHeaderClassHint(txt)) score += 40;
+    if (rect.top >= 85 && rect.top <= 390) score += 40;
+    if (rect.height <= 70) score += 25;
     if (rect.width > 320) score += 15;
     score -= Math.abs(rect.left) / 8;
-    score -= Math.max(0, el.querySelectorAll('*').length - 110) / 3;
+    score -= Math.max(0, el.querySelectorAll('*').length - 125) / 3;
     return score;
   }
 
   function getHeaderMountTarget() {
-    // Put the Hub exactly where the old sword launcher strip was:
-    // its own centered strip directly ABOVE Torn's Messages/Events/Home icon row.
+    // Header-only. No bottom fallback and no overlay watcher.
+    // First keep the same target once chosen so the bar never jumps.
+    if (state.lastTargetKey) {
+      const existing = Array.from(document.querySelectorAll('header, nav, ul, section, div')).find((el) => targetKey(el) === state.lastTargetKey && isLowerHeaderHost(el));
+      if (existing) return existing;
+    }
+
     const selectors = [
       '[class*=areas]',
       '[class*=menu]',
       '[class*=nav]',
       '[class*=links]',
       '[class*=icons]',
+      '[class*=header]',
+      '[class*=top]',
       '#header-root',
       '#topHeader',
+      'header',
       'nav',
       'ul',
       'section',
@@ -767,30 +805,7 @@
     return candidates[0] || null;
   }
 
-  function findHeaderZoneFallback() {
-    try {
-      const choices = Array.from(document.querySelectorAll('header, nav, [class*=header], [class*=top], [class*=menu], [class*=content], section, div'));
-      let best = null;
-      let bestScore = -999999;
-      choices.forEach((el) => {
-        if (!isVisibleElement(el)) return;
-        const rect = el.getBoundingClientRect();
-        if (rect.top < 40 || rect.top > 520 || rect.width < 260 || rect.height > 180) return;
-        const txt = headerText(el);
-        if (/Battle Stats|Job Information|Property Information|User Information|FairFight/i.test(txt)) return;
-        let score = 0;
-        if (/messages|events|awards|home|items|city|wheel|stocks/i.test(txt)) score += 120;
-        if (/money|points|merits|happy|energy|nerve/i.test(txt)) score += 40;
-        if (rect.top >= 130 && rect.top <= 390) score += 40;
-        if (rect.width > 320) score += 15;
-        score -= Math.abs(rect.left) / 10;
-        if (score > bestScore) { best = el; bestScore = score; }
-      });
-      return best;
-    } catch (_) {
-      return null;
-    }
-  }
+  function findHeaderZoneFallback() { return null; }
 
   function ensureHeaderButton() {
     let btn = document.getElementById(HUB_SHIELD_ID);
@@ -806,10 +821,17 @@
     }
 
     const finalTarget = getHeaderMountTarget();
-    if (!finalTarget) return false;
+    if (!finalTarget) {
+      // No fallback launcher: wait for Torn's header, then mount on the next light retry.
+      return false;
+    }
 
     btn.classList.remove('thub-floating-fallback');
     btn.style.removeProperty('display');
+    btn.style.setProperty('display', 'inline-flex', 'important');
+    btn.style.setProperty('visibility', 'visible', 'important');
+    btn.style.setProperty('opacity', '0.98', 'important');
+    btn.style.setProperty('pointer-events', 'auto', 'important');
 
     let slot = document.getElementById(HUB_STATUS_SLOT_ID);
     if (!slot) {
@@ -989,18 +1011,24 @@
   }
 
   function startMountWatch() {
-    // No fallback loops and no open/close watcher.
-    // Only remount the app button if Torn redraws the header.
-    setInterval(() => {
+    // Simple header mount retry only. It does not open or close the Hub.
+    let tries = 0;
+    const mountTimer = setInterval(() => {
       if (!document.body) return;
       forceHideBottomCornerLaunchersCss();
       hideStandaloneLaunchers();
+
       const btn = document.getElementById(HUB_SHIELD_ID);
       const slot = document.getElementById(HUB_STATUS_SLOT_ID);
-      if (!btn || !slot || !slot.isConnected || btn.parentElement !== slot) {
-        ensureHeaderButton();
-      }
-    }, 4000);
+      const mountedOk = !!(btn && slot && slot.isConnected && btn.parentElement === slot);
+
+      if (!mountedOk) ensureHeaderButton();
+      else renderHubVisibility();
+
+      tries += 1;
+      if (mountedOk && tries > 4) clearInterval(mountTimer);
+      if (tries > 60) clearInterval(mountTimer);
+    }, 1000);
   }
 
   try { boot(); } catch (e) {}

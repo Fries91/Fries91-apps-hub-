@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.5.5
+// @version      0.5.6
 // @description  PDA friendly Torn app hub launcher with stable centered Fries91 faction apps button.
 // @author       Fries91
 // @match        https://www.torn.com/*
@@ -151,17 +151,17 @@
         z-index: 2;
         width: 100%;
         min-width: 0;
-        max-width: min(680px, calc(100vw - 20px));
-        height: 36px;
-        border-radius: 10px;
+        max-width: min(650px, calc(100vw - 28px));
+        height: 28px;
+        border-radius: 8px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         background: linear-gradient(180deg, rgba(130,20,22,.98), rgba(42,10,12,.98));
         border: 1px solid rgba(244,217,143,.42);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 4px 12px rgba(0,0,0,.35);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 7px rgba(0,0,0,.28);
         color: #f7ead0;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 900;
         letter-spacing: .15px;
         line-height: 1;
@@ -169,7 +169,7 @@
         white-space: nowrap;
         user-select: none;
         cursor: pointer;
-        padding: 0 14px;
+        padding: 0 12px;
         margin: 0;
         flex: 1 1 auto;
         transform: none;
@@ -184,9 +184,9 @@
 
       #${HUB_SHIELD_ID}:hover,
       #${HUB_SHIELD_ID}:focus {
-        background: transparent;
-        border-color: transparent;
-        box-shadow: none;
+        background: linear-gradient(180deg, rgba(130,20,22,.98), rgba(42,10,12,.98));
+        border-color: rgba(244,217,143,.42);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 7px rgba(0,0,0,.28);
         opacity: 1;
       }
 
@@ -201,12 +201,12 @@
         align-items: center;
         justify-content: center;
         margin: 0;
-        padding: 3px 8px;
+        padding: 2px 14px;
         width: 100%;
         max-width: 100vw;
-        height: 42px;
-        min-height: 42px;
-        max-height: 42px;
+        height: 34px;
+        min-height: 34px;
+        max-height: 34px;
         box-sizing: border-box;
         background: transparent;
         overflow: visible;
@@ -832,6 +832,13 @@
     if (!slot) {
       slot = document.createElement('div');
       slot.id = HUB_STATUS_SLOT_ID;
+    }
+
+    // Stability fix: once the launcher is mounted, do not keep moving it between
+    // Torn header candidates. PDA can redraw header rows and make the finder pick
+    // a slightly different strip, which caused the button to jump between two spots.
+    if (slot.isConnected && btn.parentElement === slot) {
+      return true;
     }
 
     const key = targetKey(target);

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.5.8
-// @description  PDA friendly Torn app hub launcher with stable close and centered Fries91 faction apps button.
+// @version      0.5.9
+// @description  PDA friendly Torn app hub launcher with stable visible slim Fries91 faction apps button.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -168,8 +168,8 @@
         width: 100%;
         min-width: 0;
         max-width: none;
-        height: 20px;
-        border-radius: 6px;
+        height: 18px;
+        border-radius: 5px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -177,7 +177,7 @@
         border: 1px solid rgba(244,217,143,.42);
         box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 7px rgba(0,0,0,.28);
         color: #f7ead0;
-        font-size: 11px;
+        font-size: 10.5px;
         font-weight: 900;
         letter-spacing: .12px;
         line-height: 1;
@@ -185,7 +185,7 @@
         white-space: nowrap;
         user-select: none;
         cursor: pointer;
-        padding: 0 8px;
+        padding: 0 6px;
         margin: 0;
         flex: 1 1 auto;
         transform: none;
@@ -220,9 +220,9 @@
         padding: 1px 8px;
         width: 100%;
         max-width: 100vw;
-        height: 24px;
-        min-height: 24px;
-        max-height: 24px;
+        height: 22px;
+        min-height: 22px;
+        max-height: 22px;
         box-sizing: border-box;
         background: transparent;
         overflow: visible;
@@ -531,16 +531,31 @@
     renderHubCards();
   }
 
+  function elementLooksOpen(el) {
+    if (!el || !el.isConnected) return false;
+    try {
+      const style = window.getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      return style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        parseFloat(style.opacity || '1') > 0 &&
+        rect.width > 0 &&
+        rect.height > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function isAnyAppOverlayOpen() {
     const war = document.getElementById('warhub-overlay');
     const insurance = document.getElementById('si-pda-overlay');
     const giveaway = document.getElementById('giveaway-overlay');
     const hubWindow = document.querySelector('.thub-window');
 
-    const warOpen = !!(war && war.classList.contains('open'));
-    const insuranceOpen = !!(insurance && insurance.classList.contains('open'));
-    const giveawayOpen = !!(giveaway && !giveaway.classList.contains('hidden'));
-    const hubWindowOpen = !!(hubWindow && hubWindow.style.display !== 'none');
+    const warOpen = !!(war && war.classList.contains('open') && elementLooksOpen(war));
+    const insuranceOpen = !!(insurance && insurance.classList.contains('open') && elementLooksOpen(insurance));
+    const giveawayOpen = !!(giveaway && !giveaway.classList.contains('hidden') && elementLooksOpen(giveaway));
+    const hubWindowOpen = !!(hubWindow && elementLooksOpen(hubWindow));
 
     return warOpen || insuranceOpen || giveawayOpen || hubWindowOpen;
   }
@@ -810,6 +825,31 @@
     return candidates[0] || null;
   }
 
+  function findHeaderZoneFallback() {
+    try {
+      const choices = Array.from(document.querySelectorAll('header, nav, [class*=header], [class*=top], [class*=menu], [class*=content], section, div'));
+      let best = null;
+      let bestScore = -999999;
+      choices.forEach((el) => {
+        if (!isVisibleElement(el)) return;
+        const rect = el.getBoundingClientRect();
+        if (rect.top < 40 || rect.top > 520 || rect.width < 260 || rect.height > 180) return;
+        const txt = headerText(el);
+        if (/Battle Stats|Job Information|Property Information|User Information|FairFight/i.test(txt)) return;
+        let score = 0;
+        if (/messages|events|awards|home|items|city|wheel|stocks/i.test(txt)) score += 120;
+        if (/money|points|merits|happy|energy|nerve/i.test(txt)) score += 40;
+        if (rect.top >= 130 && rect.top <= 390) score += 40;
+        if (rect.width > 320) score += 15;
+        score -= Math.abs(rect.left) / 10;
+        if (score > bestScore) { best = el; bestScore = score; }
+      });
+      return best;
+    } catch (_) {
+      return null;
+    }
+  }
+
   function ensureHeaderButton() {
     let btn = document.getElementById(HUB_SHIELD_ID);
 
@@ -832,9 +872,15 @@
       }, true);
     }
 
-    const target = getHeaderMountTarget();
+    let finalTarget = getHeaderMountTarget();
 
-    if (!target) {
+    if (!finalTarget) {
+      // Header-only fallback: create a slim strip under Torn's top header area.
+      // This is not the old bottom-corner fallback; it keeps the app hub in the header zone.
+      finalTarget = findHeaderZoneFallback();
+    }
+
+    if (!finalTarget) {
       btn.classList.add('thub-floating-fallback');
       if (!btn.isConnected) document.body.appendChild(btn);
       btn.style.setProperty('display', 'none', 'important');
@@ -859,15 +905,15 @@
       return true;
     }
 
-    const key = targetKey(target);
+    const key = targetKey(finalTarget);
     const buttonMissing = !btn.isConnected || btn.parentElement !== slot;
-    const slotMissing = !slot.isConnected || slot.parentElement !== target.parentNode || slot.nextSibling !== target;
+    const slotMissing = !slot.isConnected || slot.parentElement !== finalTarget.parentNode || slot.nextSibling !== finalTarget;
 
     if (slotMissing || buttonMissing || state.lastTargetKey !== key) {
       try {
-        target.parentNode.insertBefore(slot, target);
+        finalTarget.parentNode.insertBefore(slot, finalTarget);
       } catch (_) {
-        target.parentNode.appendChild(slot);
+        finalTarget.parentNode.appendChild(slot);
       }
       slot.appendChild(btn);
       state.lastTargetKey = key;

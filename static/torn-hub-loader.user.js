@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.5.3
+// @version      0.5.4
 // @description  PDA friendly Torn app hub launcher with centered Fries91 faction apps button.
 // @author       Fries91
 // @match        https://www.torn.com/*

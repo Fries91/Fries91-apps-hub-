@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.5.2
-// @description  PDA friendly Torn app hub launcher.
+// @version      0.5.3
+// @description  PDA friendly Torn app hub launcher with centered Fries91 faction apps button.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -133,27 +133,33 @@
         -webkit-appearance: none;
         position: relative;
         z-index: 2;
-        width: 24px;
-        height: 24px;
-        min-width: 24px;
-        border-radius: 0;
+        width: auto;
+        min-width: 194px;
+        max-width: calc(100vw - 24px);
+        height: 32px;
+        border-radius: 10px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: transparent;
-        border: 0;
-        box-shadow: none;
-        color: #fff;
-        font-size: 20px;
+        background: linear-gradient(180deg, rgba(130,20,22,.98), rgba(42,10,12,.98));
+        border: 1px solid rgba(244,217,143,.42);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 4px 12px rgba(0,0,0,.35);
+        color: #f7ead0;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: .15px;
         line-height: 1;
+        text-align: center;
+        white-space: nowrap;
         user-select: none;
         cursor: pointer;
-        padding: 0;
+        padding: 0 12px;
         margin: 0;
         flex: 0 0 auto;
         transform: none;
         transition: opacity .15s ease, transform .15s ease;
         opacity: .98;
+        -webkit-tap-highlight-color: transparent;
       }
 
       #${HUB_SHIELD_ID}.thub-floating-fallback {
@@ -179,11 +185,11 @@
         align-items: center;
         justify-content: center;
         margin-left: 6px;
-        margin-right: 0;
+        margin-right: 6px;
         flex: 0 0 auto;
         vertical-align: middle;
-        width: 28px;
-        height: 28px;
+        width: auto;
+        height: 34px;
       }
 
       #${HUB_OVERLAY_ID} {
@@ -434,8 +440,8 @@
       <div id="${HUB_OVERLAY_ID}">
         <div class="thub-head">
           <div>
-            <div class="thub-title">Torn Hub</div>
-            <div class="thub-sub">Open your apps</div>
+            <div class="thub-title">🍟 Fries91's Faction Apps</div>
+            <div class="thub-sub">Choose an app</div>
           </div>
           <div class="thub-actions">
             <button class="thub-btn" id="thub-close-btn">✕</button>
@@ -741,9 +747,9 @@
       btn = document.createElement('button');
       btn.id = HUB_SHIELD_ID;
       btn.type = 'button';
-      btn.title = 'See Hub';
-      btn.setAttribute('aria-label', 'See Hub');
-      btn.textContent = '🍟';
+      btn.title = '🍟 Fries91\'s Faction Apps';
+      btn.setAttribute('aria-label', 'Fries91 faction apps');
+      btn.textContent = "🍟Fries91's Faction Apps";
       btn.addEventListener('pointerdown', openHubFromButton, true);
       btn.addEventListener('touchend', openHubFromButton, { capture: true, passive: false });
       btn.addEventListener('click', (e) => {
@@ -963,7 +969,7 @@
 // ==UserScript==
 // @name         War and Chain ⚔️
 // @namespace    fries91-war-hub
-// @version      3.6.6
+// @version      3.7.2
 // @description  War and Chain by Fries91. Free-access rebuild with admin and leader/co-leader restrictions kept.
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -984,8 +990,11 @@
     'use strict';
 
 
-    if (window.__WAR_HUB_V291__ && document.getElementById('warhub-shield')) return;
-    window.__WAR_HUB_V291__ = true;
+    // Fresh guard for this fixed build. This prevents an older/stale loader flag
+    // from hiding the launcher after updates on PDA/Tampermonkey.
+    if (window.__WAR_HUB_HEADER_ICON_FIX_V371__) return;
+    window.__WAR_HUB_HEADER_ICON_FIX_V371__ = true;
+    try { window.__WAR_HUB_V291__ = false; } catch (_e_guard) {}
     window.__WAR_HUB_EMBEDDED__ = true;
 
     // ============================================================
@@ -1010,6 +1019,7 @@
     var K_FF_SCOUTER_KEY = 'warhub_ff_scouter_key_v1';
     var K_FF_SCOUTER_CACHE = 'warhub_ff_scouter_cache_v1';
     var K_TARGETS_LOCAL = 'warhub_targets_local_v1';
+    var K_PENDING_BOUNTY = 'warhub_pending_bounty_v3';
 
     
     // ============================================================
@@ -1025,10 +1035,10 @@
 
     var TAB_ROW_1 = [
         ['overview', 'Overview'],
+        ['chain', 'Chain'],
         ['members', 'Members'],
         ['enemies', 'Enemies'],
-        ['hospital', 'Hospital'],
-        ['chain', 'Chain']
+        ['hospital', 'Hospital']
     ];
 
     var TAB_ROW_2 = [
@@ -1479,6 +1489,8 @@
 .warhub-btn.ghost { background: rgba(255,255,255,.08) !important; }\n\
 .warhub-btn.gray { background: rgba(255,255,255,.10) !important; }\n\
 .warhub-btn.green { background: linear-gradient(180deg, rgba(42,168,95,.98), rgba(21,120,64,.98)) !important; }\n\
+.warhub-btn.available { background: linear-gradient(180deg, rgba(42,168,95,.98), rgba(21,120,64,.98)) !important; }\n\
+.warhub-btn.unavailable { background: linear-gradient(180deg, rgba(190,36,36,.98), rgba(118,14,14,.98)) !important; }\n\
 .warhub-btn.warn { background: linear-gradient(180deg, rgba(226,154,27,.98), rgba(163,102,8,.98)) !important; }\n\.warhub-btn.bounty { background: linear-gradient(180deg, rgba(220,50,50,.98), rgba(145,18,18,.98)) !important; border-color: rgba(255,255,255,.14) !important; }\n\
 .warhub-pill {\n\
   display: inline-flex !important;\n\
@@ -1810,9 +1822,11 @@
 
     GM_addStyle(css);
     GM_addStyle([
-        '#warhub-shield { left: 10px !important; bottom: 44px !important; top: auto !important; right: auto !important; width: 118px !important; height: 28px !important; background: transparent !important; border: 0 !important; box-shadow: none !important; transform: none !important; }',
-        '#warhub-shield button { width: 118px !important; height: 28px !important; border-radius: 9px !important; border: 1px solid rgba(205,164,74,.5) !important; background: linear-gradient(180deg, rgba(90,12,18,.95), rgba(35,8,10,.98)) !important; color: #f5df9d !important; font-size: 10px !important; font-weight: 800 !important; letter-spacing: .1px !important; box-shadow: 0 8px 20px rgba(0,0,0,.35) !important; padding: 0 !important; margin: 0 !important; cursor: pointer !important; }',
-        '@media (max-width: 520px) { #warhub-shield { left: 10px !important; bottom: 44px !important; width: 118px !important; height: 28px !important; } #warhub-shield button { width: 118px !important; height: 28px !important; font-size: 10px !important; border-radius: 9px !important; } }'
+        '#warhub-header-slot { display: flex !important; align-items: center !important; justify-content: flex-start !important; width: 100% !important; height: 38px !important; min-height: 38px !important; max-height: 38px !important; margin: 0 !important; padding: 3px 0 3px 8px !important; background: transparent !important; box-sizing: border-box !important; position: relative !important; z-index: 50 !important; overflow: visible !important; }',
+        '#warhub-shield.warhub-header-mounted { position: static !important; left: auto !important; right: auto !important; top: auto !important; bottom: auto !important; transform: none !important; width: 32px !important; height: 32px !important; min-width: 32px !important; min-height: 32px !important; max-width: 32px !important; max-height: 32px !important; border-radius: 8px !important; background: transparent !important; border: 0 !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; z-index: 50 !important; }',
+        '#warhub-shield.warhub-header-mounted button { width: 32px !important; height: 32px !important; min-width: 32px !important; min-height: 32px !important; border-radius: 8px !important; border: 1px solid rgba(205,164,74,.50) !important; background: linear-gradient(180deg, rgba(90,12,18,.96), rgba(35,8,10,.98)) !important; color: #f5df9d !important; font-size: 18px !important; line-height: 1 !important; font-weight: 900 !important; box-shadow: 0 2px 8px rgba(0,0,0,.35) !important; padding: 0 !important; margin: 0 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; }',
+        '#warhub-shield:not(.warhub-header-mounted) { display: none !important; }',
+        '#warhub-badge.warhub-header-badge { position: absolute !important; right: -4px !important; top: -5px !important; left: auto !important; z-index: 60 !important; }'
     ].join('\n'));
 
     // ============================================================
@@ -1934,7 +1948,17 @@
 
     function tickMembersCountdowns() {
         if (!overlay) return;
-        if (currentTab !== 'members' && currentTab !== 'hospital' && currentTab !== 'enemies') return;
+        if (currentTab !== 'overview' && currentTab !== 'members' && currentTab !== 'hospital' && currentTab !== 'enemies') return;
+
+        var chainTimers = overlay.querySelectorAll('[data-chain-hit-timer]');
+        chainTimers.forEach(function (timerEl) {
+            var base = Number(timerEl.getAttribute('data-chain-hit-base') || 0);
+            var renderedAt = Number(timerEl.getAttribute('data-chain-hit-rendered-at') || Date.now());
+            var elapsedTimer = Math.floor((Date.now() - renderedAt) / 1000);
+            var live = Math.max(0, base - elapsedTimer);
+            timerEl.textContent = 'Hit Timer: ' + (live > 0 ? formatCountdown(live) : 'Ready');
+        });
+
         if (!membersLiveStamp) return;
 
         var elapsed = Math.floor((Date.now() - membersLiveStamp) / 1000);
@@ -1979,7 +2003,7 @@
 
     function startMembersCountdownLoop() {
         stopMembersCountdownLoop();
-        if (currentTab !== 'members' && currentTab !== 'hospital' && currentTab !== 'enemies') return;
+        if (currentTab !== 'overview' && currentTab !== 'members' && currentTab !== 'hospital' && currentTab !== 'enemies') return;
 
         membersCountdownTimer = setInterval(function () {
             tickMembersCountdowns();
@@ -2269,37 +2293,150 @@
     }
 
 
+function isVisibleHeaderElement(el) {
+    if (!el || el === document.body || el === document.documentElement) return false;
+    if (el.id === 'warhub-header-slot' || el.id === 'warhub-shield' || el.id === 'warhub-overlay') return false;
+    var rect = null;
+    try { rect = el.getBoundingClientRect(); } catch (_e) { return false; }
+    if (!rect || rect.width < 220 || rect.height < 22 || rect.height > 110) return false;
+
+    // Keep the sword in Torn's real top header area only.
+    // This blocks page-content headers like the Home title row.
+    var maxTop = Math.min(430, Math.max(260, window.innerHeight * 0.42));
+    if (rect.top < 55 || rect.top > maxTop) return false;
+
+    var style = null;
+    try { style = window.getComputedStyle(el); } catch (_e2) { return false; }
+    if (!style || style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || 1) === 0) return false;
+    var txt = String(el.innerText || el.textContent || '');
+    if (txt.indexOf('War and Chain') >= 0) return false;
+    return true;
+}
+
+function navWordCount(txt) {
+    txt = String(txt || '').toLowerCase();
+    var words = ['messages', 'events', 'awards', 'home', 'items', 'city', 'wheel', 'stocks', 'forums', 'missions', 'news', 'traveling', 'travel', 'job'];
+    var count = 0;
+    words.forEach(function (w) {
+        if (txt.indexOf(w) >= 0) count += 1;
+    });
+    return count;
+}
+
+function isStatHeaderHost(el) {
+    if (!isVisibleHeaderElement(el)) return false;
+    var txt = String(el.innerText || el.textContent || '');
+    return /\$\s*[0-9]/.test(txt) || /[0-9]+\s*\/\s*[0-9]+/.test(txt) || /merit|money|point|happy|energy|nerve/i.test(txt);
+}
+
+function isLowerHeaderHost(el) {
+    if (!isVisibleHeaderElement(el)) return false;
+    if (isStatHeaderHost(el)) return false;
+
+    var rect = el.getBoundingClientRect();
+    var txt = String(el.innerText || el.textContent || '');
+    var count = navWordCount(txt);
+
+    // Must be the Torn icon nav strip, not a page title row that only says Home.
+    if (count >= 3 && rect.height <= 95) return true;
+    return false;
+}
+
+function scoreLowerHeaderHost(el) {
+    var rect = el.getBoundingClientRect();
+    var txt = String(el.innerText || el.textContent || '');
+    var score = 0;
+    score += navWordCount(txt) * 35;
+    if (rect.top >= 90 && rect.top <= 360) score += 35;
+    if (rect.height <= 65) score += 20;
+    if (rect.width > 300) score += 10;
+    score -= Math.abs(rect.left) / 10;
+    score -= Math.max(0, el.querySelectorAll('*').length - 90) / 2;
+    return score;
+}
+
+function findTornHeaderHost() {
+    var selectors = [
+        '[class*=areas]',
+        '[class*=menu]',
+        '[class*=nav]',
+        '[class*=links]',
+        '[class*=icons]',
+        '#header-root',
+        '#topHeader',
+        'nav',
+        'ul',
+        'section',
+        'div'
+    ];
+
+    var seen = [];
+    var candidates = [];
+    selectors.forEach(function (sel) {
+        Array.prototype.slice.call(document.querySelectorAll(sel)).forEach(function (el) {
+            if (seen.indexOf(el) >= 0) return;
+            seen.push(el);
+            if (isLowerHeaderHost(el)) candidates.push(el);
+        });
+    });
+
+    candidates.sort(function (a, b) { return scoreLowerHeaderHost(b) - scoreLowerHeaderHost(a); });
+    return candidates[0] || null;
+}
+
 function getOrCreateOwnHeaderSlot() {
-    return null;
+    var host = findTornHeaderHost();
+    if (!host || !host.parentNode) return null;
+
+    var slot = document.getElementById('warhub-header-slot');
+    if (!slot) {
+        slot = document.createElement('div');
+        slot.id = 'warhub-header-slot';
+        slot.setAttribute('aria-label', 'War and Chain launcher slot');
+    }
+
+    // Place the sword in its own locked strip directly above Torn's Messages/Events/Home row.
+    // This prevents it from jumping down into page content like the Home title section.
+    if (slot.parentNode !== host.parentNode || slot.nextSibling !== host) {
+        try {
+            host.parentNode.insertBefore(slot, host);
+        } catch (_e) {
+            try { host.parentNode.appendChild(slot); } catch (_e2) { return null; }
+        }
+    }
+
+    return slot;
 }
 
 function mountShieldIntoHeader() {
-    return false;
+    if (!shield) return false;
+    var slot = getOrCreateOwnHeaderSlot();
+    if (!slot) return false;
+    if (shield.parentNode !== slot) slot.appendChild(shield);
+    shield.classList.add('warhub-header-mounted');
+    return true;
 }
 
 function applyShieldPos() {
     if (!shield) return;
 
-    shield.classList.remove('warhub-header-mounted');
-    if (document.body && shield.parentNode !== document.body) document.body.appendChild(shield);
-
-    var leftPx = 10;
-    var bottomPx = 44;
-    var sinner = document.getElementById('si-pda-launcher');
-    if (sinner && typeof sinner.getBoundingClientRect === 'function') {
-        var rect = sinner.getBoundingClientRect();
-        if (rect && isFinite(rect.top) && rect.top > 0) {
-            leftPx = Math.max(10, Math.round(rect.left || 10));
-            bottomPx = Math.max(44, Math.round(window.innerHeight - rect.top + 6));
-        }
+    if (mountShieldIntoHeader()) {
+        shield.style.position = 'static';
+        shield.style.left = 'auto';
+        shield.style.top = 'auto';
+        shield.style.bottom = 'auto';
+        shield.style.right = 'auto';
+        shield.style.width = '32px';
+        shield.style.height = '32px';
+        shield.style.display = 'inline-flex';
+        shield.style.opacity = '1';
+        shield.style.visibility = 'visible';
+        shield.style.pointerEvents = 'auto';
+        shield.style.transform = 'none';
+        shield.style.zIndex = '50';
+    } else {
+        shield.classList.remove('warhub-header-mounted');
     }
-
-    shield.style.left = leftPx + 'px';
-    shield.style.bottom = bottomPx + 'px';
-    shield.style.top = 'auto';
-    shield.style.right = 'auto';
-    shield.style.transform = 'none';
-    shield.style.zIndex = '2147483647';
 
     positionBadge();
 }
@@ -2321,6 +2458,16 @@ function applyShieldPos() {
 
     function positionBadge() {
         if (!badge || !shield) return;
+
+        if (shield.classList && shield.classList.contains('warhub-header-mounted')) {
+            var slot = document.getElementById('warhub-header-slot');
+            if (slot && badge.parentNode !== slot) slot.appendChild(badge);
+            badge.classList.add('warhub-header-badge');
+            badge.style.left = 'auto';
+            badge.style.top = '-5px';
+            badge.style.right = '-4px';
+            return;
+        }
 
         var rect = shield.getBoundingClientRect();
         badge.classList.remove('warhub-header-badge');
@@ -2443,7 +2590,7 @@ function makeHoldDraggable(handle, target, key) {
             }
 
             if (!key) {
-                setStatus('Enter your Torn API key.', true);
+                setStatus('Enter your Torn Limited API key.', true);
                 return;
             }
 
@@ -2491,6 +2638,7 @@ function makeHoldDraggable(handle, target, key) {
                 renderBody();
                 restartPolling();
             } catch (refreshErr) {
+                
                 try { renderBody(); } catch (_e) {}
                 try { restartPolling(); } catch (_e2) {}
             }
@@ -2638,10 +2786,26 @@ function _loadFactionMembers() {
             name: payload.faction_name || ''
         });
 
-        factionMembersCache = members.slice();
-        currentFactionMembers = members.slice();
+        members = ensureViewerInMembersList(members);
+
+        var existingMembers = mergeMemberLists(
+            arr(factionMembersCache),
+            arr(currentFactionMembers),
+            arr(state && state.faction && state.faction.members)
+        );
+
+        var mergedMembers = mergeMemberLists(existingMembers, members);
+
+        // If the API only gives the logged-in user on a limited key, keep the fuller list
+        // that was already loaded or learned from script/chain activity.
+        if (members.length <= 1 && existingMembers.length > members.length) {
+            mergedMembers = mergeMemberLists(existingMembers, members);
+        }
+
+        factionMembersCache = mergedMembers.slice();
+        currentFactionMembers = mergedMembers.slice();
         membersLiveStamp = Date.now();
-        state.faction.members = members.slice();
+        state.faction.members = mergedMembers.slice();
 
         return factionMembersCache.slice();
     });
@@ -2875,6 +3039,7 @@ function _loadEnemies() {
 
     function _refreshMembersLive() {
         _refreshMembersLive = _asyncToGenerator(function* () {
+            yield loadState();
             yield loadFactionMembers(true);
             membersLiveStamp = Date.now();
         });
@@ -3002,6 +3167,7 @@ function _refreshEnemiesLive() {
                     return;
                 }
             } catch (err) {
+                console.error('War and Chain tab tick error:', err);
             } finally {
                 loadInFlight = false;
             }
@@ -3029,6 +3195,7 @@ function _handleTabClick() {
         loadInFlight = true;
         try {
             if (currentTab === 'members') {
+                yield loadState();
                 yield loadFactionMembers(true);
                 membersLiveStamp = Date.now();
             } else if (currentTab === 'chain') {
@@ -3057,6 +3224,7 @@ function _handleTabClick() {
                 yield refreshOverviewLive();
             }
         } catch (err) {
+            console.error('War and Chain tab load error:', err);
         } finally {
             loadInFlight = false;
         }
@@ -3127,10 +3295,22 @@ function _handleTabClick() {
 
     function mount() {
         if (mounted) return;
+        if (!document.body) return;
 
-        shield = null;
-        badge = null;
+        ['warhub-shield', 'warhub-badge', 'warhub-overlay'].forEach(function (id) {
+            var old = document.getElementById(id);
+            if (old && old.parentNode) old.parentNode.removeChild(old);
+        });
 
+        shield = document.createElement('div');
+        shield.id = 'warhub-shield';
+        shield.innerHTML = '<button type="button" aria-label="Open War and Chain">⚔️</button>';
+shield.setAttribute('aria-label', 'Open War and Chain');
+        shield.setAttribute('title', 'War and Chain');
+
+        badge = document.createElement('div');
+        badge.id = 'warhub-badge';
+        
         overlay = document.createElement('div');
         overlay.id = 'warhub-overlay';
         overlay.innerHTML = [
@@ -3151,14 +3331,23 @@ function _handleTabClick() {
             '</div>'
         ].join('');
 
+        document.body.appendChild(shield);
+        document.body.appendChild(badge);
         document.body.appendChild(overlay);
 
+        applyShieldPos();
         applyOverlayPos();
         updateBadge();
+        positionBadge();
 
         function shieldTapBlocked() {
             return false;
         }
+
+        bindTap(shield, function () {
+            if (shieldTapBlocked()) return;
+            toggleOverlay();
+        });
 
         bindTap(overlay.querySelector('#warhub-close'), function () {
             setOverlayOpen(false);
@@ -3390,6 +3579,116 @@ function _handleTabClick() {
         return item;
     }
 
+    function getChainSitterItems() {
+        var chain = (state && state.chain) || {};
+        return arr(chain.sitter_items).map(mergeChainMember).filter(function (item) {
+            return !!String((item && (item.user_id || item.id || item.player_id || item.name || item.user_name)) || '').trim();
+        });
+    }
+
+    function getActiveChainSitterItems() {
+        var chain = (state && state.chain) || {};
+        var out = [];
+        var seen = {};
+
+        function addItem(item) {
+            item = mergeChainMember(item || {});
+            var uid = String((item && (item.user_id || item.id || item.player_id)) || '').trim();
+            var nm = getMemberName(item);
+            var key = uid || nm.toLowerCase();
+            if (!key || seen[key]) return;
+            seen[key] = true;
+            out.push(Object.assign({}, item, { sitter_enabled: true }));
+        }
+
+        arr(chain.sitter_items).forEach(function (item) {
+            if (item && item.sitter_enabled === false) return;
+            addItem(item);
+        });
+
+        arr(chain.available_items).forEach(function (item) {
+            if (item && (item.sitter_enabled || item.chain_sitter || item.is_chain_sitter)) addItem(item);
+        });
+
+        if (chain.sitter_enabled) {
+            addItem({
+                user_id: viewerUserId(),
+                name: viewerName(),
+                user_name: viewerName(),
+                sitter_enabled: true
+            });
+        }
+
+        return out;
+    }
+
+    function getActiveChainSitterNames(limit) {
+        var names = getActiveChainSitterItems().map(function (item) { return getMemberName(item); }).filter(Boolean);
+        if (!names.length) return '';
+        limit = Number(limit || 5);
+        var shown = names.slice(0, limit);
+        if (names.length > shown.length) shown.push('+' + String(names.length - shown.length) + ' more');
+        return shown.join(', ');
+    }
+
+    function renderActiveChainSittersPill(limit) {
+        var activeNames = getActiveChainSitterNames(limit || 5);
+        var activeCount = getActiveChainSitterItems().length;
+        return '<span class="warhub-pill ' + (activeCount ? 'warn' : 'neutral') + '">Active Chain Sitters: ' + esc(activeNames || 'None') + '</span>';
+    }
+
+    function getChainSitterNames(limit) {
+        var names = getChainSitterItems().map(function (item) { return getMemberName(item); }).filter(Boolean);
+        if (!names.length) return '';
+        limit = Number(limit || 4);
+        var shown = names.slice(0, limit);
+        if (names.length > shown.length) shown.push('+' + String(names.length - shown.length) + ' more');
+        return shown.join(', ');
+    }
+
+    function getChainHitSeconds() {
+        var chain = (state && state.chain) || {};
+        var raw = Number(
+            chain.cooldown ||
+            chain.chain_cooldown ||
+            chain.hit_timer ||
+            chain.hit_timer_seconds ||
+            chain.next_hit_timer ||
+            chain.next_hit_seconds ||
+            chain.chain_timer ||
+            chain.chain_timer_seconds ||
+            chain.timer ||
+            chain.timer_seconds ||
+            chain.time_left ||
+            chain.time_left_seconds ||
+            chain.timeout ||
+            chain.timeout_seconds ||
+            0
+        );
+        if (Number.isFinite(raw) && raw > 0) return Math.floor(raw);
+
+        var until = Number(
+            chain.cooldown_until_ts ||
+            chain.chain_timeout_ts ||
+            chain.timer_until_ts ||
+            chain.expires_at_ts ||
+            chain.chain_expires_at_ts ||
+            chain.next_hit_due_ts ||
+            0
+        );
+        if (Number.isFinite(until) && until > 0) {
+            return Math.max(0, Math.floor(until - (Date.now() / 1000)));
+        }
+        return 0;
+    }
+
+    function renderChainHitTimerPill() {
+        var seconds = getChainHitSeconds();
+        var renderedAt = Date.now();
+        var label = seconds > 0 ? formatCountdown(seconds) : 'Ready';
+        return '<span class="warhub-pill warn" data-chain-hit-timer="1" data-chain-hit-base="' + esc(String(seconds)) + '" data-chain-hit-rendered-at="' + esc(String(renderedAt)) + '">Hit Timer: ' + esc(label) + '</span>';
+    }
+
     function humanStateLabel(st) {
         st = String(st || '').toLowerCase();
         if (st === 'online') return 'Online';
@@ -3494,7 +3793,215 @@ function _handleTabClick() {
 
     function bountyUrl(member) {
         var id = getMemberId(member);
-        return id ? ('https://www.torn.com/bounties.php?p=add&userID=' + encodeURIComponent(id)) : '#';
+        return id ? ('https://www.torn.com/bounties.php?p=add&XID=' + encodeURIComponent(id) + '&reward=250000') : '#';
+    }
+
+    function chainAvailableIdMap() {
+        var out = {};
+        var chain = (state && state.chain) || {};
+        arr(chain.available_items || chain.available_members || []).forEach(function (item) {
+            var id = String(getMemberId(item) || (item && (item.user_id || item.id || item.player_id)) || '').trim();
+            if (id) out[id] = true;
+        });
+
+        var viewerId = viewerUserId();
+        if (viewerId && chain.available === true) out[String(viewerId)] = true;
+        return out;
+    }
+
+    function isMemberChainAvailable(member) {
+        var id = String(getMemberId(member) || '').trim();
+        if (!id) return false;
+        return !!chainAvailableIdMap()[id];
+    }
+
+    function isViewerMemberRow(member) {
+        var id = String(getMemberId(member) || '').trim();
+        var viewerId = String(viewerUserId() || '').trim();
+        return !!(id && viewerId && id === viewerId);
+    }
+
+    function mergeMemberLists() {
+        var out = [];
+        var index = {};
+
+        function add(member) {
+            if (!member || typeof member !== 'object') return;
+            var id = String(getMemberId(member) || member.user_id || member.id || member.player_id || '').trim();
+            var name = getMemberName(member);
+            var key = id || String(name || '').toLowerCase();
+            if (!key || key === 'unknown') return;
+
+            var clean = Object.assign({}, member);
+            if (id) {
+                clean.user_id = id;
+                clean.id = clean.id || id;
+                clean.player_id = clean.player_id || id;
+            }
+            if (!clean.name || clean.name === 'Unknown') clean.name = name;
+
+            if (index[key] == null) {
+                index[key] = out.length;
+                out.push(clean);
+            } else {
+                out[index[key]] = Object.assign({}, out[index[key]], clean);
+            }
+        }
+
+        for (var i = 0; i < arguments.length; i += 1) {
+            arr(arguments[i]).forEach(add);
+        }
+
+        return out;
+    }
+
+    function getMembersFromScriptState() {
+        var chain = (state && state.chain) || {};
+        var faction = (state && state.faction) || {};
+        return mergeMemberLists(
+            arr(currentFactionMembers),
+            arr(factionMembersCache),
+            arr(faction.members),
+            arr(faction.items),
+            arr(faction.member_items),
+            arr(state && state.members),
+            arr(state && state.users),
+            arr(state && state.script_users),
+            arr(state && state.bot_users),
+            arr(state && state.active_users),
+            arr(chain.available_items),
+            arr(chain.available_members),
+            arr(chain.sitter_items),
+            arr(chain.sitter_members),
+            arr(chain.members),
+            arr(chain.users)
+        );
+    }
+
+    function getMembersForMembersTab() {
+        var members = getMembersFromScriptState();
+        members = ensureViewerInMembersList(members);
+        return mergeMemberLists(members).sort(function (a, b) {
+            if (isViewerMemberRow(a)) return -1;
+            if (isViewerMemberRow(b)) return 1;
+            return getMemberName(a).localeCompare(getMemberName(b));
+        });
+    }
+
+    function ensureViewerInMembersList(members) {
+        members = arr(members).slice();
+        var viewer = (state && (state.viewer || state.me || state.user)) || {};
+        var viewerId = String(
+            viewer.user_id ||
+            viewer.id ||
+            viewer.player_id ||
+            viewerUserId() ||
+            ''
+        ).trim();
+        if (!viewerId) return members;
+
+        var exists = members.some(function (member) {
+            return String(getMemberId(member) || '').trim() === viewerId;
+        });
+        if (exists) return members;
+
+        var viewerRow = Object.assign({}, viewer, {
+            user_id: viewerId,
+            id: viewerId,
+            name: String(viewer.name || viewerName() || 'You'),
+            online_state: 'online',
+            status: 'Online',
+            status_detail: '',
+            last_action: 'Online',
+            position: String(viewer.position || viewer.role || 'You')
+        });
+
+        members.unshift(viewerRow);
+        return members;
+    }
+
+    function rememberBountyTarget(member) {
+        var id = String(getMemberId(member) || '').trim();
+        var name = String(getMemberName(member) || '').trim();
+        if (!id) return;
+        try {
+            GM_setValue(K_PENDING_BOUNTY, JSON.stringify({
+                id: id,
+                name: name,
+                reward: 250000,
+                saved_at: Date.now()
+            }));
+        } catch (_e) {}
+    }
+
+    function openBountyForMember(member) {
+        rememberBountyTarget(member);
+        var url = bountyUrl(member);
+        if (!url || url === '#') return;
+        try { window.open(url, '_blank', 'noopener,noreferrer'); }
+        catch (_e) { window.location.href = url; }
+    }
+
+    function getPendingBountyTarget() {
+        try {
+            var raw = GM_getValue(K_PENDING_BOUNTY, '');
+            var item = raw ? JSON.parse(raw) : null;
+            if (!item || !item.id) return null;
+            if (item.saved_at && (Date.now() - Number(item.saved_at)) > 10 * 60 * 1000) return null;
+            return item;
+        } catch (_e) {
+            return null;
+        }
+    }
+
+    function fillInputLikeHuman(input, value) {
+        if (!input || value == null) return false;
+        try {
+            input.focus();
+            input.value = String(value);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+        } catch (_e) {
+            try { input.value = String(value); return true; } catch (_e2) { return false; }
+        }
+    }
+
+    function findBountyTargetInput() {
+        var inputs = Array.prototype.slice.call(document.querySelectorAll('input'));
+        return inputs.find(function (input) {
+            var txt = String((input.placeholder || '') + ' ' + (input.name || '') + ' ' + (input.id || '') + ' ' + (input.getAttribute('aria-label') || '')).toLowerCase();
+            return txt.indexOf('target') >= 0 || txt.indexOf('search') >= 0 || txt.indexOf('user') >= 0;
+        }) || inputs[0] || null;
+    }
+
+    function findBountyRewardInput() {
+        var inputs = Array.prototype.slice.call(document.querySelectorAll('input'));
+        return inputs.find(function (input) {
+            var txt = String((input.placeholder || '') + ' ' + (input.name || '') + ' ' + (input.id || '') + ' ' + (input.getAttribute('aria-label') || '')).toLowerCase();
+            return txt.indexOf('reward') >= 0 || txt.indexOf('amount') >= 0 || txt.indexOf('money') >= 0 || txt.indexOf('price') >= 0;
+        }) || inputs.find(function (input) {
+            return String(input.type || '').toLowerCase() === 'number' || input.inputMode === 'numeric';
+        }) || inputs[1] || null;
+    }
+
+    function autoFillBountyPageFromWarHub() {
+        if (!/\/bounties\.php/i.test(String(location.pathname || ''))) return;
+        var item = getPendingBountyTarget();
+        if (!item) return;
+
+        var targetValue = item.name ? (item.name + ' [' + item.id + ']') : String(item.id);
+        var rewardValue = String(item.reward || 250000);
+
+        fillInputLikeHuman(findBountyTargetInput(), targetValue);
+        fillInputLikeHuman(findBountyRewardInput(), rewardValue);
+
+        [800, 1600, 3000].forEach(function (ms) {
+            setTimeout(function () {
+                fillInputLikeHuman(findBountyTargetInput(), targetValue);
+                fillInputLikeHuman(findBountyRewardInput(), rewardValue);
+            }, ms);
+        });
     }
 
     function memberSearchText(member) {
@@ -3575,6 +4082,10 @@ function _handleTabClick() {
         var life = lifeValue(member);
         var med = medCooldownValue(member);
         var position = String((member && (member.position || member.faction_position || member.role || '')) || '').trim();
+        var memberAvailable = isMemberChainAvailable(member);
+        var availabilityLabel = memberAvailable ? 'Available' : 'Unavailable';
+        var availabilityClass = memberAvailable ? 'available' : 'unavailable';
+        var canToggleAvailability = isViewerMemberRow(member);
 
         return [
             '<div class="warhub-member-row" ' +
@@ -3593,7 +4104,8 @@ function _handleTabClick() {
                         ) + '</span>',
                     '</div>',
                     '<div class="warhub-row">',
-                        '<a class="warhub-btn bounty" href="' + esc(bountyUrl(member)) + '">Bounty</a>',
+                        '<button type="button" class="warhub-btn bounty" data-action="bounty-user" data-user-id="' + esc(id) + '" data-user-name="' + esc(name) + '">Bounty</button>',
+                        '<button type="button" class="warhub-btn ' + esc(availabilityClass) + '" data-action="member-availability-toggle" data-user-id="' + esc(id) + '" data-user-name="' + esc(name) + '" data-current="' + esc(memberAvailable ? '1' : '0') + '" title="' + esc(canToggleAvailability ? 'Tap to toggle your availability' : 'Shown for all members. Only that member can change it.') + '">' + esc(availabilityLabel) + '</button>',
                     '</div>',
                 '</div>',
                 '<div class="warhub-statline">',
@@ -3784,11 +4296,11 @@ function renderEnemyRow(member, opts) {
             '<div class="warhub-grid">',
                 '<div class="warhub-hero-card">',
                     '<div class="warhub-title">Login</div>',
-                    '<div class="warhub-sub">Use your Torn API key to connect to War and Chain.</div>',
+                    '<div class="warhub-sub">Use your Torn Limited API key to connect to War and Chain. Limited API key used.</div>',
                 '</div>',
                 '<div class="warhub-card warhub-col">',
-                    '<label class="warhub-label" for="warhub-api-key">Torn API Key</label>',
-                    '<input id="warhub-api-key" class="warhub-input" type="password" value="' + esc(getApiKey()) + '" placeholder="Enter API key" />',
+                    '<label class="warhub-label" for="warhub-api-key">Torn Limited API Key</label>',
+                    '<input id="warhub-api-key" class="warhub-input" type="password" value="' + esc(getApiKey()) + '" placeholder="Enter Limited API key" />',
                     '<label class="warhub-label" for="warhub-owner-token">Owner/Admin Token (optional)</label>',
                     '<input id="warhub-owner-token" class="warhub-input" type="password" value="' + esc(getOwnerToken()) + '" placeholder="Owner/admin token" />',
                     '<label class="warhub-label" for="warhub-ff-key">FF Scouter Limited Key (optional)</label>',
@@ -3826,6 +4338,7 @@ function renderOverviewTab() {
     var scoreThem = Number(war.score_them || war.enemy_score || 0);
     var chainUs = Number(war.chain_us || 0);
     var chainThem = Number(war.chain_them || 0);
+    var chainSittersText = getActiveChainSitterNames(5);
 
     var termsText = String((state && state.terms_summary && state.terms_summary.text) || '');
     var medDealsText = String((state && state.med_deals && state.med_deals.text) || '');
@@ -3853,6 +4366,10 @@ function renderOverviewTab() {
             '<div class="warhub-hero-card warhub-overview-hero">',
                 '<div class="warhub-title">War Overview</div>',
                 '<div class="warhub-sub">Faction vs enemy war view with chain, score, med deals, terms, and dibs.</div>',
+                '<div class="warhub-row">',
+                    renderChainHitTimerPill(),
+                    renderActiveChainSittersPill(5),
+                '</div>',
                 '<div class="warhub-war-head">',
                     '<div class="warhub-war-side">',
                         '<div class="warhub-war-side-label">Your faction</div>',
@@ -3881,12 +4398,13 @@ function renderOverviewTab() {
 }
 
 function renderMembersTab() {
-    var members = arr(currentFactionMembers || factionMembersCache || []);
+    var members = getMembersForMembersTab();
 
     var search = String(GM_getValue('warhub_members_search', '') || '').trim().toLowerCase();
 
     var filtered = members.filter(function (m) {
         if (!search) return true;
+        if (isViewerMemberRow(m)) return true;
         return memberSearchText(m).indexOf(search) >= 0;
     });
 
@@ -3897,7 +4415,7 @@ function renderMembersTab() {
         '<div class="warhub-grid">',
             '<div class="warhub-hero-card">',
                 '<div class="warhub-title">Members</div>',
-                '<div class="warhub-sub">Faction members only. Live energy, life, and med cooldown stay here only.</div>',
+                '<div class="warhub-sub">Members using War and Chain plus faction roster when available. Availability starts Unavailable, can be toggled beside Bounty, and everyone can see it.</div>',
             '</div>',
 
             '<div class="warhub-card">',
@@ -4728,8 +5246,8 @@ function renderTermsTab() {
                 '<div class="warhub-sub">Account and local script settings</div>',
             '</div>',
             '<div class="warhub-card warhub-col">',
-                '<label class="warhub-label" for="warhub-api-key">Torn API Key</label>',
-                '<input id="warhub-api-key" class="warhub-input" type="password" value="" placeholder="' + esc(maskedKey ? 'Saved API key' : 'Enter API key') + '" />',
+                '<label class="warhub-label" for="warhub-api-key">Torn Limited API Key</label>',
+                '<input id="warhub-api-key" class="warhub-input" type="password" value="" placeholder="' + esc(maskedKey ? 'Saved Limited API key' : 'Enter Limited API key') + '" />',
                 '<label class="warhub-label" for="warhub-ff-key">FF Scouter Limited Key</label>',
                 '<input id="warhub-ff-key" class="warhub-input" type="password" value="' + esc(getFfScouterKey()) + '" placeholder="Optional FF Scouter key for fair-fight values" />',
                 '<div class="warhub-sub">FF Scouter key powers the fair-fight values in enemy rows and refreshes automatically while Enemies is open.</div>',
@@ -4770,7 +5288,7 @@ function renderTermsTab() {
             '<div class="warhub-card warhub-col">',
                 '<h3>Quick start</h3>',
                 '<div class="warhub-spy-box">',
-                    '<div><b>1.</b> Open <b>Settings</b> and paste your Torn API key.</div>',
+                    '<div><b>1.</b> Open <b>Settings</b> and paste your Torn Limited API key.</div>',
                     '<div><b>2.</b> Press <b>Re-login</b> to create a backend session and load your faction-linked state.</div>',
                     '<div><b>3.</b> Open <b>Members</b>, <b>Enemies</b>, <b>Hospital</b>, and <b>Chain</b> to pull live faction war tools.</div>',
                     '<div><b>4.</b> Leaders and co-leaders can activate members and manage faction-only tools.</div>',
@@ -4820,7 +5338,7 @@ function renderTermsTab() {
                 '<h3>API key storage and safety</h3>',
                 '<div class="warhub-spy-box">',
                     '<div><b>Local storage:</b> the userscript saves your session token, open tab, overlay state, FF key, and other convenience settings in userscript storage on your device/browser.</div>',
-                    '<div style="margin-top:6px;"><b>Backend use:</b> when you log in, your API key is sent to the War and Chain backend and used to authenticate your account and power faction-linked live features.</div>',
+                    '<div style="margin-top:6px;"><b>Backend use:</b> when you log in, your Limited API key is sent to the War and Chain backend and used to authenticate your account and power faction-linked live features.</div>',
                     '<div style="margin-top:6px;"><b>Best practice:</b> do not share your key, do not paste someone else\'s key, and do not use more access than the script actually needs.</div>',
                     '<div style="margin-top:6px;"><b>Important:</b> if you think your key has been misused, replace it in Torn and log in again with a fresh one.</div>',
                 '</div>',
@@ -4828,7 +5346,7 @@ function renderTermsTab() {
 
             '<div class="warhub-card warhub-col">',
                 '<h3>Using the script safely</h3>',
-                '<div>• Only use your own Torn API key.</div>',
+                '<div>• Only use your own Torn Limited API key.</div>',
                 '<div>• Never give your Torn password to any script or website.</div>',
                 '<div>• Leaders and co-leaders should only activate members who should have faction access.</div>',
                 '<div>• Data shown in the overlay depends on Torn API responses, backend state, and your current session.</div>',
@@ -4938,6 +5456,43 @@ function _handleActionClick() {
         if (!action) return;
 
         try {
+            if (action === 'bounty-user') {
+                var member = {
+                    user_id: el.getAttribute('data-user-id') || '',
+                    name: el.getAttribute('data-user-name') || ''
+                };
+                openBountyForMember(member);
+                return;
+            }
+
+            if (action === 'member-availability-toggle') {
+                var rowUserId = String(el.getAttribute('data-user-id') || '').trim();
+                var myUserId = String(viewerUserId() || '').trim();
+                if (!rowUserId || !myUserId || rowUserId !== myUserId) {
+                    setStatus('You can only change your own availability. Everyone can see the status.', true);
+                    return;
+                }
+
+                var currentlyAvailable = el.getAttribute('data-current') === '1';
+                var nextAvailable = !currentlyAvailable;
+                setStatus(nextAvailable ? 'Marking you available...' : 'Marking you unavailable...', false);
+
+                var memberAvailRes = yield authedReq('POST', '/api/chain', { available: nextAvailable });
+                if (!memberAvailRes.ok) {
+                    setStatus((memberAvailRes.json && memberAvailRes.json.error) || 'Failed to update availability.', true);
+                    return;
+                }
+
+                state = state || {};
+                state.chain = Object.assign({}, state.chain || {}, memberAvailRes.json || {}, { available: nextAvailable });
+                yield loadState();
+                yield loadFactionMembers(true);
+                membersLiveStamp = Date.now();
+                renderBody();
+                setStatus(nextAvailable ? 'Marked available.' : 'Marked unavailable.', false);
+                return;
+            }
+
             if (action === 'login') {
                 yield doLogin();
                 return;
@@ -5308,6 +5863,7 @@ function _handleActionClick() {
                 return;
             }
         } catch (err) {
+            console.error('War and Chain action error:', action, err);
             setStatus('Action failed: ' + action, true);
         }
     });
@@ -5362,7 +5918,7 @@ function _handleActionClick() {
 
         renderStatus();
 
-        if (currentTab === 'members' || currentTab === 'enemies' || currentTab === 'hospital' || currentTab === 'faction') {
+        if (currentTab === 'overview' || currentTab === 'members' || currentTab === 'enemies' || currentTab === 'hospital' || currentTab === 'faction') {
             startMembersCountdownLoop();
         } else {
             stopMembersCountdownLoop();
@@ -5394,7 +5950,7 @@ function _handleActionClick() {
 
         renderStatus();
 
-        if (currentTab === 'members' || currentTab === 'enemies' || currentTab === 'hospital' || currentTab === 'faction') {
+        if (currentTab === 'overview' || currentTab === 'members' || currentTab === 'enemies' || currentTab === 'hospital' || currentTab === 'faction') {
             startMembersCountdownLoop();
         } else {
             stopMembersCountdownLoop();
@@ -5444,11 +6000,15 @@ function _handleActionClick() {
     // ============================================================
 
     function ensureMounted() {
-        if (!document.body) return;
+        if (!document.body) {
+            setTimeout(ensureMounted, 250);
+            return;
+        }
 
+        var hasShield = !!document.getElementById('warhub-shield');
         var hasOverlay = !!document.getElementById('warhub-overlay');
 
-        if (!hasOverlay || !overlay) {
+        if (!hasShield || !hasOverlay || !shield || !overlay) {
             mounted = false;
             shield = null;
             badge = null;
@@ -5467,34 +6027,23 @@ function _handleActionClick() {
             try {
                 if (!document.body) return;
 
-                if (!document.getElementById('warhub-overlay')) {
+                if (!document.getElementById('warhub-shield') || !document.getElementById('warhub-overlay')) {
                     mounted = false;
                     shield = null;
                     badge = null;
                     overlay = null;
                     ensureMounted();
                     renderBody();
+                } else {
+                    applyShieldPos();
+                    positionBadge();
                 }
             } catch (err) {
+                
             }
         }, 2000);
     }
 
-    function boot() {
-        ensureMounted();
-        restartPolling();
-        startRemountWatch();
-
-        if (isLoggedIn()) {
-            loadState().then(function () {
-                renderBody();
-            }).catch(function (err) {
-                renderBody();
-            });
-        } else {
-            renderBody();
-        }
-    }
 
 
     window.__FRIES_WARHUB_BRIDGE__ = {
@@ -5528,3467 +6077,43 @@ function _handleActionClick() {
         shieldEl: function () { return shield; }
     };
 
-    boot();
-
-})();
-
-/* ===== Embedded Sinner's Insurance module ===== */
-
-// ==UserScript==
-// @name         Sinner's Insurance 7DS
-// @namespace    fries91-xanax-insurance
-// @version      4.0.3
-// @description  Sinner's Insurance
-// @match        https://www.torn.com/*
-// @match        https://torn.com/*
-// @run-at       document-idle
-// @grant        GM_addStyle
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_xmlhttpRequest
-// @grant        GM_deleteValue
-// @updateURL    https://raw.githubusercontent.com/Fries91/xanax-insurance/main/static/xanax-insurance.user.js
-// @downloadURL  https://raw.githubusercontent.com/Fries91/xanax-insurance/main/static/xanax-insurance.user.js
-// @connect      xanax-insurance.onrender.com
-// @connect      api.torn.com
-// ==/UserScript==
-
-(function () {
-    'use strict';
-
-    var launcher = null;
-    var overlay = null;
-    var backdrop = null;
-    var remountTimer = null;
-    var historyLoading = false;
-    var warTabLoading = false;
-    var warTabEnabled = !!gv('si_war_tab_enabled', 0);
-    var warTabUpdatedAt = gv('si_war_tab_updated_at', '');
-    var warTabUpdatedBy = gv('si_war_tab_updated_by', '');
-    var warTabViewerCanManage = false;
-
-    var activeTab = gv('si_active_tab', 'rules');
-    var selectedPlan = gv('si_selected_plan', 'None');
-    var sessionRole = gv('si_session_role', 'guest');
-    var sessionName = gv('si_session_name', 'Guest');
-    var claimStatus = gv('si_claim_status', 'Not submitted');
-    var claimNote = gv('si_claim_note', '');
-    var claimLoss = gv('si_claim_loss', '');
-    var claimProof = gv('si_claim_proof', '');
-    var claimStack = gv('si_claim_stack', '');
-    var claimHistory = gv('si_claim_history', '[]');
-    var claimId = gv('si_claim_id', '');
-    var payoutAmount = gv('si_payout_amount', '');
-    var decisionNote = gv('si_decision_note', '');
-    var claimsDb = gv('si_claims_db', '[]');
-    var selectedClaimId = gv('si_selected_claim_id', '');
-    var claimFilterStatus = gv('si_claim_filter_status', 'all');
-    var claimFilterMember = gv('si_claim_filter_member', '');
-    var claimSortMode = gv('si_claim_sort_mode', 'newest');
-    var apiBase = gv('si_api_base', 'https://xanax-insurance.onrender.com');
-    var syncSecret = gv('si_sync_secret', '6282');
-    var backendStatus = gv('si_backend_status', 'Not tested');
-    var lastSyncAt = gv('si_last_sync_at', 'Never');
-    var finVerifiedXanax = Number(gv('si_fin_verified_xanax', 0) || 0);
-    var finFactionCut = Number(gv('si_fin_faction_cut', 0) || 0);
-    var finPool = Number(gv('si_fin_pool', 0) || 0);
-    var finReceiptCount = Number(gv('si_fin_receipt_count', 0) || 0);
-    var finMemberPayCount = Number(gv('si_fin_member_pay_count', 0) || 0);
-    var finPayoutCount = Number(gv('si_fin_payout_count', 0) || 0);
-    var financeLoading = false;
-    var adminApiKey = gv('si_admin_api_key', '');
-    var memberApiKey = gv('si_member_api_key', '');
-    var singleApiKey = gv('si_single_api_key', gv('si_member_api_key', ''));
-    var factionIdLock = gv('si_faction_id_lock', '49384');
-    var authMode = gv('si_auth_mode', 'local');
-    var settingsNotice = gv('si_settings_notice', 'Waiting for API key save or login.');
-    var autoLoginTriedAt = gv('si_auto_login_tried_at', '');
-    var autoLoginBusy = false;
-    var xanaxRequestTotalOwed = Number(gv('si_xr_total_owed', 0) || 0);
-    var xanaxRequestRequested = !!gv('si_xr_requested', 0);
-    var xanaxRequestRequestedAt = gv('si_xr_requested_at', '');
-    var xanaxRequestRequestedBy = gv('si_xr_requested_by', '');
-    var xanaxRequestSentAt = gv('si_xr_sent_at', '');
-    var xanaxRequestSentBy = gv('si_xr_sent_by', '');
-    var xanaxRequestResetAt = gv('si_xr_reset_at', '');
-    var xanaxRequestResetBy = gv('si_xr_reset_by', '');
-    var xanaxRequestStatus = gv('si_xr_status', 'idle');
-    var xanaxRequestViewerCanRequest = false;
-    var xanaxRequestViewerIsAdmin = false;
-    var alertUnreadClaims = Number(gv('si_alert_unread_claims', 0) || 0);
-    var alertPendingActivations = Number(gv('si_alert_pending_activations', 0) || 0);
-    var activationsDb = gv('si_activations_db', '[]');
-    var selectedActivationId = gv('si_selected_activation_id', '');
-    var activationNotice = gv('si_activation_notice', '');
-
-    var scanTimer = null;
-    var activeCoverageEnabled = !!gv('si_active_coverage_enabled', 0);
-    var activeCoveragePlan = gv('si_active_coverage_plan', '');
-    var activeCoverageStage = gv('si_active_coverage_stage', '');
-    var activeCoverageArmedAt = gv('si_active_coverage_armed_at', '');
-    var activeCoverageExpiresAt = gv('si_active_coverage_expires_at', '');
-    var activeCoverageDetectStatus = gv('si_active_coverage_detect_status', 'idle');
-    var activeCoverageLastCheckAt = gv('si_active_coverage_last_check_at', '');
-    var activeCoverageLastEventKey = gv('si_active_coverage_last_event_key', '');
-    var activeCoverageLastClaimId = gv('si_active_coverage_last_claim_id', '');
-    var activeCoverageAutoSubmittedAt = gv('si_active_coverage_auto_submitted_at', '');
-    var activeCoverageArmedEnergy = gv('si_active_coverage_armed_energy', '');
-    var activeCoverageArmedBoosterCd = gv('si_active_coverage_armed_booster_cd', '');
-    var activeCoverageRuleCheck = gv('si_active_coverage_rule_check', '');
-
-    var PLANS = [
-        {
-            name: 'Pride',
-            coverage: '6 Xanax',
-            payment: '2 Xanax',
-            window: '30 mins',
-            payout: '6 Xanax',
-            stackType: 'any',
-            rule: 'Can start with any amount of energy.',
-            oldRows: [
-                ['Payment', '2 Xanax'],
-                ['Window', '30 mins'],
-                ['Payout', '6 Xanax']
-            ]
-        },
-        {
-            name: 'Envy',
-            coverage: '25 Xanax + 3 E-DVD',
-            payment: '5 Xanax',
-            window: '30 mins',
-            payout: '10 Xanax + 2 E-DVD',
-            stackType: 'mixed',
-            rule: 'Use for approved Envy claims only.',
-            oldRows: [
-                ['Payment', '5 Xanax'],
-                ['Window', '30 mins'],
-                ['Payout', '10 Xanax + 2 E-DVD']
-            ]
-        },
-        {
-            name: 'Wrath',
-            coverage: 'Stage based',
-            payment: '2 Xanax each stage',
-            window: '30 mins each stage',
-            payout: '4 / 5 / 6 / 8 Xanax',
-            stackType: 'xanax',
-            rule: 'Each stage has a required starting energy amount and must be armed on the matching stage.',
-            stages: [
-                { stage: 'Stage 1', coverage: '5 Xanax', payment: '2 Xanax', payout: '4 Xanax', terms: 'Start at 0 energy', window: '30 mins' },
-                { stage: 'Stage 2', coverage: '10 Xanax', payment: '2 Xanax', payout: '5 Xanax', terms: 'Start at 250 energy', window: '30 mins' },
-                { stage: 'Stage 3', coverage: '15 Xanax', payment: '2 Xanax', payout: '6 Xanax', terms: 'Start at 500 energy', window: '30 mins' },
-                { stage: 'Stage 4', coverage: '20 Xanax', payment: '2 Xanax', payout: '8 Xanax', terms: 'Start at 750 energy', window: '30 mins' }
-            ],
-            oldRows: [
-                ['Payment', '2 Xanax each stage'],
-                ['Window', '30 mins each stage'],
-                ['Payout', '4 / 5 / 6 / 8 Xanax']
-            ]
-        }
-    ];
-
-
-    function gv(key, fallback) {
-        try {
-            return typeof GM_getValue === 'function' ? GM_getValue(key, fallback) : fallback;
-        } catch (e) {
-            return fallback;
-        }
-    }
-
-    function sv(key, value) {
-        try {
-            if (typeof GM_setValue === 'function') GM_setValue(key, value);
-        } catch (e) {}
-    }
-
-    function esc(value) {
-        return String(value == null ? '' : value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
-    function saveSession() {
-        sv('si_active_tab', activeTab || 'overview');
-        sv('si_selected_plan', selectedPlan || 'None');
-        sv('si_session_role', sessionRole || 'guest');
-        sv('si_session_name', sessionName || 'Guest');
-        sv('si_claim_status', claimStatus || 'Not submitted');
-        sv('si_claim_note', claimNote || '');
-        sv('si_claim_loss', claimLoss || '');
-        sv('si_claim_proof', claimProof || '');
-        sv('si_claim_stack', claimStack || '');
-        sv('si_claim_history', claimHistory || '[]');
-        sv('si_claim_id', claimId || '');
-        sv('si_payout_amount', payoutAmount || '');
-        sv('si_decision_note', decisionNote || '');
-        sv('si_claims_db', claimsDb || '[]');
-        sv('si_selected_claim_id', selectedClaimId || '');
-        sv('si_claim_filter_status', claimFilterStatus || 'all');
-        sv('si_claim_filter_member', claimFilterMember || '');
-        sv('si_claim_sort_mode', claimSortMode || 'newest');
-        sv('si_api_base', apiBase || '');
-        sv('si_sync_secret', syncSecret || '');
-        sv('si_backend_status', backendStatus || 'Not tested');
-        sv('si_last_sync_at', lastSyncAt || 'Never');
-        sv('si_fin_verified_xanax', finVerifiedXanax || 0);
-        sv('si_fin_faction_cut', finFactionCut || 0);
-        sv('si_fin_pool', finPool || 0);
-        sv('si_fin_receipt_count', finReceiptCount || 0);
-        sv('si_fin_member_pay_count', finMemberPayCount || 0);
-        sv('si_fin_payout_count', finPayoutCount || 0);
-        sv('si_admin_api_key', adminApiKey || '');
-        sv('si_member_api_key', memberApiKey || '');
-        sv('si_single_api_key', singleApiKey || '');
-        sv('si_faction_id_lock', factionIdLock || '');
-        sv('si_auth_mode', authMode || 'local');
-        sv('si_settings_notice', settingsNotice || '');
-        sv('si_auto_login_tried_at', autoLoginTriedAt || '');
-        sv('si_xr_total_owed', xanaxRequestTotalOwed || 0);
-        sv('si_xr_requested', xanaxRequestRequested ? 1 : 0);
-        sv('si_xr_requested_at', xanaxRequestRequestedAt || '');
-        sv('si_xr_requested_by', xanaxRequestRequestedBy || '');
-        sv('si_xr_sent_at', xanaxRequestSentAt || '');
-        sv('si_xr_sent_by', xanaxRequestSentBy || '');
-        sv('si_xr_reset_at', xanaxRequestResetAt || '');
-        sv('si_xr_reset_by', xanaxRequestResetBy || '');
-        sv('si_xr_status', xanaxRequestStatus || 'idle');
-        sv('si_alert_unread_claims', alertUnreadClaims || 0);
-        sv('si_alert_pending_activations', alertPendingActivations || 0);
-        sv('si_activations_db', activationsDb || '[]');
-        sv('si_selected_activation_id', selectedActivationId || '');
-        sv('si_activation_notice', activationNotice || '');
-        sv('si_active_coverage_enabled', activeCoverageEnabled ? 1 : 0);
-        sv('si_active_coverage_plan', activeCoveragePlan || '');
-        sv('si_active_coverage_stage', activeCoverageStage || '');
-        sv('si_active_coverage_armed_at', activeCoverageArmedAt || '');
-        sv('si_active_coverage_expires_at', activeCoverageExpiresAt || '');
-        sv('si_active_coverage_detect_status', activeCoverageDetectStatus || 'idle');
-        sv('si_active_coverage_last_check_at', activeCoverageLastCheckAt || '');
-        sv('si_active_coverage_last_event_key', activeCoverageLastEventKey || '');
-        sv('si_active_coverage_last_claim_id', activeCoverageLastClaimId || '');
-        sv('si_active_coverage_auto_submitted_at', activeCoverageAutoSubmittedAt || '');
-        sv('si_active_coverage_armed_energy', activeCoverageArmedEnergy || '');
-        sv('si_active_coverage_armed_booster_cd', activeCoverageArmedBoosterCd || '');
-        sv('si_active_coverage_rule_check', activeCoverageRuleCheck || '');
-        sv('si_war_tab_enabled', warTabEnabled ? 1 : 0);
-        sv('si_war_tab_updated_at', warTabUpdatedAt || '');
-        sv('si_war_tab_updated_by', warTabUpdatedBy || '');
-    }
-
-    function isAdmin() {
-        return sessionRole === 'admin';
-    }
-
-    function isMember() {
-        return sessionRole === 'member' || sessionRole === 'admin';
-    }
-
-    function canManageWarStackUi() {
-        return sessionRole === 'admin' || sessionRole === 'leader' || sessionRole === 'co-leader';
-    }
-
-    function canSeeClaimsUi() {
-        return sessionRole === 'admin';
-    }
-
-    function canSeeActivationsUi() {
-        return sessionRole === 'admin';
-    }
-
-    function canSeeXanaxRequestUi() {
-        return sessionRole === 'admin' || sessionRole === 'leader';
-    }
-
-    function maskApiKeyForDisplay(value) {
-        var v = String(value || '');
-        if (!v) return '';
-        if (v.length <= 4) return '****';
-        return Array(Math.max(4, v.length - 4) + 1).join('*') + v.slice(-4);
-    }
-
-    function getPlanByName(name) {
-        return PLANS.find(function (p) { return p.name === name; }) || null;
-    }
-
-    function getPlanRuleText(name) {
-        var p = getPlanByName(name);
-        return p ? p.rule : 'No plan selected.';
-    }
-
-    function getGreedPlanData() {
-        return {
-            name: 'Greed',
-            coverage: '1 Feathery Hotel Coupon',
-            payment: '1 Xanax',
-            window: '30 mins',
-            payout: '1 Feathery Hotel Coupon',
-            terms: [
-                'Greed Terms:',
-                'Any energy.',
-                'Payment: 1 Xanax.',
-                'Payout: 1 Feathery Hotel Coupon.',
-                'Window: 30 mins.',
-                'Only available when War Stack is activated.'
-            ].join('\n')
-        };
-    }
-
-    function getDetailedPlanTerms(name) {
-        var p = getPlanByName(name);
-        if (!p) return 'No plan selected.';
-        if (name === 'Wrath' && p.stages && p.stages.length) {
-            return [
-                'Wrath Terms:',
-                'Window: 30 mins for every stage.',
-                'Payment: 2 Xanax per stage.',
-                'Stage 1 payout: 4 Xanax | Terms: Start at 0 energy.',
-                'Stage 2 payout: 5 Xanax | Terms: Start at 250 energy.',
-                'Stage 3 payout: 6 Xanax | Terms: Start at 500 energy.',
-                'Stage 4 payout: 8 Xanax | Terms: Start at 750 energy.'
-            ].join('\n');
-        }
-        if (name === 'Envy') {
-            return [
-                'Envy Terms:',
-                'Use for approved Envy claims only.',
-                'Must start with 1000 energy.',
-                'Must start with 0 booster cool down.',
-                'Can use Wrath for stack.',
-                'Payout: 10 Xanax + 2 E-DVD.',
-                'Payment: 5 Xanax.',
-                'Window: 30 mins.'
-            ].join('\n');
-        }
-        if (name === 'Pride') {
-            return [
-                'Pride Terms:',
-                'Payout: 6 Xanax.',
-                'Payment: 2 Xanax.',
-                'Window: 30 mins.',
-                p.rule
-            ].join('\n');
-        }
-        return p.rule;
-    }
-
-    function getPayoutGuide(name) {
-        var p = getPlanByName(name);
-        return p ? p.payout : 'Admin review';
-    }
-
-    function stackMatchesPlan(name, stackText) {
-        var p = getPlanByName(name);
-        if (!p) return true;
-        var s = String(stackText || '').toLowerCase();
-        if (p.stackType === 'any') return true;
-        if (p.stackType === 'xanax') return s.indexOf('xanax') >= 0;
-        if (p.stackType === 'mixed') return s.indexOf('xanax') >= 0 || s.indexOf('dvd') >= 0 || s.indexOf('edvd') >= 0;
-        return true;
-    }
-
-
-    function toMs(value) {
-        var t = Date.parse(String(value || ''));
-        return isNaN(t) ? 0 : t;
-    }
-
-    function nowMs() {
-        return Date.now();
-    }
-
-    function formatDateTime(value) {
-        var ms = toMs(value);
-        return ms ? new Date(ms).toLocaleString() : 'Not set';
-    }
-
-    function formatRemaining(ms) {
-        ms = Number(ms || 0);
-        if (ms <= 0) return 'Expired';
-        var total = Math.floor(ms / 1000);
-        var h = Math.floor(total / 3600);
-        var m = Math.floor((total % 3600) / 60);
-        var s = total % 60;
-        if (h > 0) return h + 'h ' + m + 'm ' + s + 's';
-        return m + 'm ' + s + 's';
-    }
-
-    function getPlanStackLabel(name) {
-        var p = getPlanByName(name);
-        if (!p) return 'Unknown';
-        if (p.stackType === 'xanax') return 'Xanax';
-        if (p.stackType === 'mixed') return 'Mixed';
-        return 'Any';
-    }
-
-    function getPlanWindowMinutes(name, stageName) {
-        return 30;
-    }
-
-    function getPlanPayoutText(name, stageName) {
-        if (name === 'Wrath') {
-            var p = getPlanByName(name);
-            if (p && p.stages) {
-                var s = p.stages.find(function (x) { return x.stage === stageName; }) || p.stages[0];
-                if (s) return s.payout;
-            }
-        }
-        return getPayoutGuide(name);
-    }
-
-    function getPlanRuleForActivation(name, stageName) {
-        if (name === 'Wrath') {
-            var p = getPlanByName(name);
-            if (p && p.stages) {
-                var s = p.stages.find(function (x) { return x.stage === stageName; }) || p.stages[0];
-                if (s) return 'Wrath active - ' + s.stage + '. ' + s.terms + '.';
-            }
-            return 'Wrath active.';
-        }
-        return getPlanRuleText(name);
-    }
-
-    function currentCoverageRemainingMs() {
-        return Math.max(0, toMs(activeCoverageExpiresAt) - nowMs());
-    }
-
-    function isCoverageActive() {
-        if (!activeCoverageEnabled) return false;
-        var expires = toMs(activeCoverageExpiresAt);
-        return !!expires && expires > nowMs();
-    }
-
-    function clearCoverageState(reason) {
-        activeCoverageEnabled = false;
-        activeCoveragePlan = '';
-        activeCoverageStage = '';
-        activeCoverageArmedAt = '';
-        activeCoverageExpiresAt = '';
-        activeCoverageDetectStatus = reason || 'idle';
-        activeCoverageArmedEnergy = '';
-        activeCoverageArmedBoosterCd = '';
-        activeCoverageRuleCheck = '';
-        saveSession();
-    }
-
-    function armPlanCoverage(name, stageName) {
-        if (!isMember()) {
-            window.alert('Log in first.');
-            return;
-        }
-        if (!name || name === 'None') {
-            window.alert('Select a plan first.');
-            return;
-        }
-
-        var payment = getRequiredPaymentForPlan(name, stageName);
-        var paymentNote = window.prompt('Enter payment sent note / proof for ' + name + (stageName ? ' ' + stageName : '') + '\nRequired: ' + payment.qty + ' ' + payment.item, '') || '';
-
-        var now = new Date();
-        var mins = getPlanWindowMinutes(name, stageName);
-        var expiry = new Date(now.getTime() + (mins * 60000));
-
-        selectedPlan = name;
-        activeCoverageEnabled = true;
-        activeCoveragePlan = name;
-        activeCoverageStage = stageName || '';
-        activeCoverageArmedAt = now.toISOString();
-        activeCoverageExpiresAt = expiry.toISOString();
-        activeCoverageDetectStatus = 'armed-pending-verification';
-        activeCoverageLastCheckAt = '';
-        activeCoverageLastEventKey = '';
-        activeCoverageLastClaimId = '';
-        activeCoverageAutoSubmittedAt = '';
-        activeCoverageArmedEnergy = '';
-        activeCoverageArmedBoosterCd = '';
-        activeCoverageRuleCheck = getPlanRuleForActivation(name, stageName);
-
-        var activationId = makeActivationId();
-        activationNotice = 'Activation requested. Waiting for admin payment verification.';
-        upsertActivationLocal({
-            id: activationId,
-            member: sessionName || 'Member',
-            memberId: '',
-            plan: name,
-            stage: stageName || '',
-            status: 'Pending verification',
-            requiredPaymentItem: payment.item,
-            requiredPaymentQty: payment.qty,
-            paymentNote: paymentNote,
-            memberPaymentVerified: 0,
-            adminReceiptVerified: 0,
-            reviewedBy: '',
-            reviewNote: '',
-            createdAt: now.toISOString(),
-            updatedAt: now.toISOString()
-        });
-        saveSession();
-        renderOverlay();
-        maybeAutoLogin(false);
-        pushActivation('member_request', {
-            id: activationId,
-            plan: name,
-            stage: stageName || '',
-            paymentNote: paymentNote
-        });
-        window.alert(name + (stageName ? ' ' + stageName : '') + ' armed for ' + mins + ' minutes. Verification request sent to admin.');
-        runCoverageScan();
-    }
-
-    function cancelCoverageState() {
-        clearCoverageState('cancelled');
-        renderOverlay();
-    }
-
-    function parseScanTimestamp(entry) {
-        var candidates = [
-            entry && entry.timestamp,
-            entry && entry.started,
-            entry && entry.time,
-            entry && entry.createdAt,
-            entry && entry.at
-        ];
-        for (var i = 0; i < candidates.length; i += 1) {
-            var v = candidates[i];
-            if (typeof v === 'number' && isFinite(v)) {
-                return v > 1000000000000 ? v : (v * 1000);
-            }
-            var ms = toMs(v);
-            if (ms) return ms;
-        }
-        return 0;
-    }
-
-    function collectLogEntries(data) {
-        var out = [];
-        function pushOne(key, entry) {
-            if (!entry) return;
-            var text = '';
-            if (typeof entry === 'string') text = entry;
-            if (!text) text = [entry.title, entry.type, entry.text, entry.description, entry.details, entry.reason, entry.message].filter(Boolean).join(' | ');
-            out.push({
-                key: String(key || entry.id || parseScanTimestamp(entry) || out.length),
-                text: String(text || ''),
-                timestampMs: parseScanTimestamp(entry),
-                raw: entry
-            });
-        }
-
-        var sources = [data && data.log, data && data.logs, data && data.events, data && data.event];
-        sources.forEach(function (src) {
-            if (!src) return;
-            if (Array.isArray(src)) {
-                src.forEach(function (entry, idx) { pushOne(idx, entry); });
-            } else if (typeof src === 'object') {
-                Object.keys(src).forEach(function (key) { pushOne(key, src[key]); });
-            }
-        });
-        return out;
-    }
-
-    function findOdLikeEvent(data) {
-        var armedAtMs = toMs(activeCoverageArmedAt);
-        var expiryMs = toMs(activeCoverageExpiresAt);
-        var logEntries = collectLogEntries(data);
-        for (var i = 0; i < logEntries.length; i += 1) {
-            var item = logEntries[i];
-            var txt = String(item.text || '').toLowerCase();
-            if (txt.indexOf('overdose') >= 0 || txt.indexOf('overdosed') >= 0 || txt.indexOf('over dos') >= 0 || txt.indexOf('rehab') >= 0) {
-                var ts = item.timestampMs || nowMs();
-                if (ts >= armedAtMs && ts <= expiryMs) return item;
-            }
-        }
-
-        var profile = data && (data.profile || data.user || data.player || data);
-        var status = profile && profile.status;
-        var statusText = [
-            status && status.description,
-            status && status.details,
-            status && status.state,
-            status && status.reason,
-            profile && profile.status_description,
-            profile && profile.status_details
-        ].filter(Boolean).join(' | ').toLowerCase();
-
-        if (statusText.indexOf('overdose') >= 0 || statusText.indexOf('overdosed') >= 0) {
-            return {
-                key: 'status-' + Math.floor(nowMs() / 30000),
-                text: statusText || 'Status indicates overdose.',
-                timestampMs: nowMs(),
-                raw: status || {}
-            };
-        }
-
-        return null;
-    }
-
-    function fetchTornScanData(apiKey) {
-        if (!apiKey) return Promise.resolve(null);
-        var url = 'https://api.torn.com/user/?selections=profile,log&key=' + encodeURIComponent(apiKey);
-        return new Promise(function (resolve) {
-            if (typeof GM_xmlhttpRequest === 'function') {
-                GM_xmlhttpRequest({
-                    method: 'GET',
-                    url: url,
-                    onload: function (res) {
-                        try { resolve(JSON.parse(res.responseText || '{}')); } catch (e) { resolve(null); }
-                    },
-                    onerror: function () { resolve(null); }
-                });
-                return;
-            }
-            fetch(url).then(function (r) { return r.json(); }).then(resolve).catch(function () { resolve(null); });
-        });
-    }
-
-    function createAutoDetectedClaim(eventInfo) {
-        if (!eventInfo || activeCoverageLastEventKey === String(eventInfo.key || '')) return;
-        if (!isCoverageActive()) return;
-
-        var payoutText = getPlanPayoutText(activeCoveragePlan, activeCoverageStage);
-        var proofText = 'Auto OD detect | ' + formatDateTime(new Date(eventInfo.timestampMs || nowMs()).toISOString()) + ' | ' + String(eventInfo.text || 'OD event');
-        claimId = makeClaimId();
-        selectedClaimId = claimId;
-        selectedPlan = activeCoveragePlan || selectedPlan;
-        claimStatus = 'Pending review';
-        claimNote = 'Auto-detected OD during active ' + activeCoveragePlan + (activeCoverageStage ? ' ' + activeCoverageStage : '') + ' window.';
-        claimLoss = payoutText;
-        claimProof = proofText;
-        claimStack = getPlanStackLabel(activeCoveragePlan);
-        payoutAmount = '';
-        decisionNote = '';
-        activeCoverageDetectStatus = 'auto-claim-submitted';
-        activeCoverageLastEventKey = String(eventInfo.key || '');
-        activeCoverageLastClaimId = claimId;
-        activeCoverageAutoSubmittedAt = new Date().toISOString();
-        upsertCurrentClaim();
-        addHistory('Auto-detected OD and created claim ' + claimId + '.');
-        saveSession();
-        pushCurrentClaimToBackend('auto_detect');
-        renderOverlay();
-    }
-
-    function runCoverageScan() {
-        if (!isCoverageActive()) {
-            if (activeCoverageEnabled && currentCoverageRemainingMs() <= 0) {
-                clearCoverageState('expired');
-                renderOverlay();
-            }
-            return Promise.resolve(null);
-        }
-
-        if (!singleApiKey) return Promise.resolve(null);
-        activeCoverageLastCheckAt = new Date().toISOString();
-        activeCoverageDetectStatus = 'scanning';
-        saveSession();
-
-        return fetchTornScanData(singleApiKey).then(function (data) {
-            if (!data) {
-                activeCoverageDetectStatus = 'scan-failed';
-                saveSession();
-                return null;
-            }
-
-            var found = findOdLikeEvent(data);
-            if (found) {
-                createAutoDetectedClaim(found);
-            } else {
-                activeCoverageDetectStatus = 'clear';
-                saveSession();
-                renderOverlay();
-            }
-            return found;
-        });
-    }
-
-    function ensureCoverageTimer() {
-        if (scanTimer) return;
-        scanTimer = setInterval(function () {
-            if (isCoverageActive()) {
-                runCoverageScan();
-                renderOverlay();
-            } else if (activeCoverageEnabled && currentCoverageRemainingMs() <= 0) {
-                clearCoverageState('expired');
-                renderOverlay();
-            }
-        }, 30000);
-    }
-
-    function getClaimsDbItems() {
-        try {
-            var arr = JSON.parse(claimsDb || '[]');
-            return Array.isArray(arr) ? arr : [];
-        } catch (e) {
-            return [];
-        }
-    }
-
-    function saveClaimsDbItems(arr) {
-        claimsDb = JSON.stringify(Array.isArray(arr) ? arr : []);
-        saveSession();
-    }
-
-    function getClaimHistoryItems() {
-        try {
-            var arr = JSON.parse(claimHistory || '[]');
-            return Array.isArray(arr) ? arr : [];
-        } catch (e) {
-            return [];
-        }
-    }
-
-    function saveHistory(items) {
-        claimHistory = JSON.stringify(Array.isArray(items) ? items : []);
-        saveSession();
-    }
-
-
-    function getActivationsDbItems() {
-        try {
-            var arr = JSON.parse(activationsDb || '[]');
-            return Array.isArray(arr) ? arr : [];
-        } catch (e) {
-            return [];
-        }
-    }
-
-    function saveActivationsDbItems(arr) {
-        activationsDb = JSON.stringify(Array.isArray(arr) ? arr : []);
-        saveSession();
-    }
-
-    function makeActivationId() {
-        return 'ACT-' + String(Date.now()).slice(-8);
-    }
-
-    function getRequiredPaymentForPlan(name, stageName) {
-        var plan = String(name || '').toLowerCase();
-        if (plan === 'pride') return { item: 'Xanax', qty: '2' };
-        if (plan === 'envy') return { item: 'Xanax', qty: '5' };
-        if (plan === 'wrath') return { item: 'Xanax', qty: '2' };
-        if (plan === 'greed') return { item: 'Xanax', qty: '1' };
-        return { item: 'Xanax', qty: '0' };
-    }
-
-    function upsertActivationLocal(rec) {
-        var items = getActivationsDbItems();
-        var idx = items.findIndex(function (x) { return x && x.id === rec.id; });
-        if (idx >= 0) items[idx] = rec; else items.unshift(rec);
-        selectedActivationId = rec.id || selectedActivationId;
-        saveActivationsDbItems(items.slice(0, 100));
-    }
-
-    function fetchAlertsState() {
-        if (!syncSecret) return Promise.resolve(null);
-        return apiRequest('POST', '/api/alerts/state', { secret: syncSecret, auth: buildServerAuthPayload() }).then(function (data) {
-            var st = data && data.state;
-            if (st) {
-                alertUnreadClaims = Number(st.unreadClaims || 0);
-                alertPendingActivations = Number(st.pendingActivations || 0);
-                saveSession();
-                renderOverlay();
-            }
-            return data;
-        }).catch(function () { return null; });
-    }
-
-    function fetchActivations() {
-        if (!syncSecret) return Promise.resolve(null);
-        return apiRequest('POST', '/api/activations/pull', { secret: syncSecret, auth: buildServerAuthPayload() }).then(function (data) {
-            if (data && Array.isArray(data.activations)) {
-                saveActivationsDbItems(data.activations);
-                if (!selectedActivationId && data.activations.length) selectedActivationId = data.activations[0].id || '';
-                fetchAlertsState();
-                renderOverlay();
-            }
-            return data;
-        }).catch(function () { return null; });
-    }
-
-    function pushActivation(action, activation) {
-        return apiRequest('POST', '/api/activations/push', {
-            secret: syncSecret,
-            action: action,
-            auth: buildServerAuthPayload(),
-            activation: activation || {}
-        }).then(function (data) {
-            if (data && data.activation) {
-                upsertActivationLocal(data.activation);
-                fetchAlertsState();
-                renderOverlay();
-            }
-            return data;
-        }).catch(function () { return null; });
-    }
-
-    function addHistory(text) {
-        var arr = getClaimHistoryItems();
-        arr.unshift({ at: new Date().toLocaleString(), text: text });
-        saveHistory(arr.slice(0, 20));
-    }
-
-    function makeClaimId() {
-        return 'SIN-' + String(Date.now()).slice(-8);
-    }
-
-    function getSelectedClaimRecord() {
-        var items = getClaimsDbItems();
-        var rec = items.find(function (item) { return item && item.id === selectedClaimId; });
-        if (rec) return rec;
-        if (items.length) {
-            selectedClaimId = items[0].id || '';
-            return items[0];
-        }
-        return null;
-    }
-
-    function syncFromSelectedClaim() {
-        var rec = getSelectedClaimRecord();
-        if (!rec) return;
-        claimId = rec.id || '';
-        selectedClaimId = rec.id || '';
-        selectedPlan = rec.plan || selectedPlan || 'None';
-        claimStatus = rec.status || 'Not submitted';
-        claimNote = rec.note || '';
-        claimLoss = rec.loss || '';
-        claimProof = rec.proof || '';
-        claimStack = rec.stack || '';
-        payoutAmount = rec.payout || '';
-        decisionNote = rec.decision || '';
-    }
-
-    function upsertCurrentClaim() {
-        if (!claimId) return;
-        var items = getClaimsDbItems();
-        var idx = items.findIndex(function (item) { return item && item.id === claimId; });
-        var rec = {
-            id: claimId,
-            member: sessionName || 'Guest',
-            plan: selectedPlan || 'None',
-            status: claimStatus || 'Not submitted',
-            note: claimNote || '',
-            loss: claimLoss || '',
-            proof: claimProof || '',
-            stack: claimStack || '',
-            payout: payoutAmount || '',
-            decision: decisionNote || '',
-            updatedAt: new Date().toLocaleString()
-        };
-        if (idx >= 0) items[idx] = rec;
-        else items.unshift(rec);
-        selectedClaimId = claimId;
-        saveClaimsDbItems(items.slice(0, 50));
-    }
-
-    function getStatusSortRank(status) {
-        var s = String(status || '');
-        if (s === 'Pending review') return 1;
-        if (s === 'Under review') return 2;
-        if (s === 'Approved') return 3;
-        if (s === 'Denied') return 4;
-        if (s === 'Paid') return 5;
-        return 99;
-    }
-
-    function sortClaimsItems(items) {
-        var arr = items.slice();
-        arr.sort(function (a, b) {
-            var mode = String(claimSortMode || 'newest');
-            if (mode === 'oldest') return String(a && a.id || '').localeCompare(String(b && b.id || ''));
-            if (mode === 'member_az') {
-                var byMember = String(a && a.member || '').localeCompare(String(b && b.member || ''));
-                if (byMember !== 0) return byMember;
-            }
-            if (mode === 'status') {
-                var byStatus = getStatusSortRank(a && a.status) - getStatusSortRank(b && b.status);
-                if (byStatus !== 0) return byStatus;
-            }
-            return String(b && b.id || '').localeCompare(String(a && a.id || ''));
-        });
-        return arr;
-    }
-
-    function getRecentMemberClaims(limit) {
-        limit = Number(limit || 5) || 5;
-        var name = String(sessionName || '').toLowerCase();
-        return getClaimsDbItems()
-            .filter(function (item) {
-                return item && String(item.member || '').toLowerCase() === name;
-            })
-            .slice(0, limit);
-    }
-
-    function getFilteredClaimsDbItems() {
-        var filtered = getClaimsDbItems().filter(function (item) {
-            if (!item) return false;
-            var statusOk = claimFilterStatus === 'all' || String(item.status || '') === String(claimFilterStatus || '');
-            var needle = String(claimFilterMember || '').trim().toLowerCase();
-            var member = String(item.member || '').toLowerCase();
-            var memberOk = !needle || member.indexOf(needle) >= 0;
-            return statusOk && memberOk;
-        });
-
-        filtered = sortClaimsItems(filtered);
-
-        if (isMember() && !isAdmin()) {
-            filtered = filtered.filter(function (item) {
-                return String(item && item.member || '').toLowerCase() === String(sessionName || '').toLowerCase();
-            });
-        }
-
-        return filtered;
-    }
-
-    function getMemberClaimSummary() {
-        var items = getClaimsDbItems();
-        var total = items.length;
-        var pending = 0;
-        var approved = 0;
-        var denied = 0;
-        var paid = 0;
-        var payouts = 0;
-        var names = {};
-
-        items.forEach(function (x) {
-            var st = String(x && x.status || '');
-            if (st === 'Pending review' || st === 'Under review') pending += 1;
-            if (st === 'Approved') approved += 1;
-            if (st === 'Denied') denied += 1;
-            if (st === 'Paid') paid += 1;
-            var n = String(x && x.member || '').trim();
-            if (n) names[n.toLowerCase()] = true;
-            var p = String(x && x.payout || '').replace(/[^0-9.-]/g, '');
-            payouts += Number(p || 0) || 0;
-        });
-
-        return {
-            total: total,
-            pending: pending,
-            approved: approved,
-            denied: denied,
-            paid: paid,
-            members: Object.keys(names).length,
-            payouts: payouts
-        };
-    }
-
-
-    function getScriptUsersCount() {
-        var names = {};
-
-        getClaimsDbItems().forEach(function (item) {
-            var n = String(item && item.member || '').trim().toLowerCase();
-            if (n) names[n] = true;
-        });
-
-        getActivationsDbItems().forEach(function (item) {
-            var n = String(item && item.member || '').trim().toLowerCase();
-            if (n) names[n] = true;
-        });
-
-        var current = String(sessionName || '').trim().toLowerCase();
-        if (current && current !== 'guest') names[current] = true;
-
-        return Object.keys(names).length;
-    }
-
-    function apiRequest(method, path, payload) {
-        var url = String(apiBase || '').replace(/\/$/, '') + path;
-
-        if (typeof GM_xmlhttpRequest === 'function') {
-            return new Promise(function (resolve, reject) {
-                GM_xmlhttpRequest({
-                    method: method,
-                    url: url,
-                    headers: { 'Content-Type': 'application/json' },
-                    data: payload ? JSON.stringify(payload) : undefined,
-                    onload: function (res) {
-                        try {
-                            resolve(JSON.parse(res.responseText || '{}'));
-                        } catch (e) {
-                            resolve({});
-                        }
-                    },
-                    onerror: reject
-                });
-            });
-        }
-
-        return fetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: payload ? JSON.stringify(payload) : undefined
-        }).then(function (res) { return res.json(); });
-    }
-
-    function buildServerAuthPayload() {
-        return {
-            mode: authMode || 'local',
-            admin_api_key: adminApiKey || singleApiKey || '',
-            api_key: memberApiKey || singleApiKey || '',
-            faction_id: factionIdLock || ''
-        };
-    }
-
-    function testBackendConnection() {
-        return apiRequest('GET', '/api/health', null).then(function (data) {
-            backendStatus = data && data.ok ? 'Connected' : 'Health check failed';
-            lastSyncAt = new Date().toLocaleString();
-            saveSession();
-            renderOverlay();
-            return data;
-        }).catch(function () {
-            backendStatus = 'Connection failed';
-            lastSyncAt = new Date().toLocaleString();
-            saveSession();
-            renderOverlay();
-            return null;
-        });
-    }
-
-    function syncClaimsFromBackend() {
-        if (!syncSecret) {
-            window.alert('Enter Sync Secret first.');
-            return Promise.resolve(null);
-        }
-        return apiRequest('POST', '/api/claims/pull', { secret: syncSecret }).then(function (data) {
-            if (data && Array.isArray(data.claims)) {
-                saveClaimsDbItems(data.claims);
-                if (!selectedClaimId && data.claims.length) selectedClaimId = data.claims[0].id || '';
-                syncFromSelectedClaim();
-                backendStatus = 'Claims pulled';
-                lastSyncAt = new Date().toLocaleString();
-                saveSession();
-                renderOverlay();
-            }
-            return data;
-        }).catch(function () {
-            backendStatus = 'Pull failed';
-            lastSyncAt = new Date().toLocaleString();
-            saveSession();
-            renderOverlay();
-            return null;
-        });
-    }
-
-
-    function fetchFinancialSummary() {
-        if (!syncSecret || financeLoading) return Promise.resolve(null);
-        financeLoading = true;
-        return apiRequest('POST', '/api/overview/financial-summary', {
-            secret: syncSecret,
-            auth: buildServerAuthPayload()
-        }).then(function (data) {
-            financeLoading = false;
-            var summary = data && data.summary;
-            if (summary) {
-                finVerifiedXanax = Number(summary.verified_xanax_in || 0);
-                finFactionCut = Number(summary.faction_cut_xanax || 0);
-                finPool = Number(summary.insurance_pool_xanax || 0);
-                finReceiptCount = Number(summary.verified_receipts_count || 0);
-                finMemberPayCount = Number(summary.member_payment_verified_count || 0);
-                finPayoutCount = Number(summary.admin_payout_verified_count || 0);
-                backendStatus = 'Payments loaded';
-                lastSyncAt = new Date().toLocaleString();
-                saveSession();
-                renderOverlay();
-            }
-            return data;
-        }).catch(function () {
-            financeLoading = false;
-            return null;
-        });
-    }
-
-    function fetchWarTabState() {
-        if (!syncSecret || warTabLoading) return Promise.resolve(null);
-        warTabLoading = true;
-        return apiRequest('POST', '/api/warstack/state', {
-            secret: syncSecret,
-            auth: buildServerAuthPayload()
-        }).then(function (data) {
-            warTabLoading = false;
-            var state = data && (data.state || data.warstack);
-            if (state) {
-                warTabEnabled = !!state.enabled;
-                warTabUpdatedAt = state.updatedAt || '';
-                warTabUpdatedBy = state.updatedAt ? (state.updatedBy || '') : (state.updatedBy || '');
-                warTabViewerCanManage = !!state.viewerCanManage;
-                if (!warTabEnabled && activeTab === 'war_stack') activeTab = 'overview';
-                backendStatus = 'War Stack loaded';
-                lastSyncAt = new Date().toLocaleString();
-                saveSession();
-                renderOverlay();
-            }
-            return data;
-        }).catch(function () {
-            warTabLoading = false;
-            return null;
-        });
-    }
-
-    function setWarTabState(enabled) {
-        if (!syncSecret) {
-            window.alert('Enter Sync Secret first.');
-            return;
-        }
-        apiRequest('POST', '/api/warstack/set-state', {
-            secret: syncSecret,
-            auth: buildServerAuthPayload(),
-            enabled: enabled ? 1 : 0
-        }).then(function (data) {
-            var state = data && (data.state || data.warstack);
-            if (state) {
-                warTabEnabled = !!state.enabled;
-                warTabUpdatedAt = state.updatedAt || '';
-                warTabUpdatedBy = state.updatedBy || '';
-                warTabViewerCanManage = !!state.viewerCanManage;
-                if (!warTabEnabled && activeTab === 'war_stack') activeTab = 'overview';
-                backendStatus = 'War Stack updated';
-                lastSyncAt = new Date().toLocaleString();
-                saveSession();
-                renderOverlay();
-            } else {
-                window.alert((data && data.error) ? data.error : 'War tab update failed.');
-            }
-        }).catch(function () {
-            window.alert('War tab update failed.');
-        });
-    }
-
-    function pushCurrentClaimToBackend(actionOverride) {
-        if (!claimId || !syncSecret) return Promise.resolve(null);
-
-        var action = actionOverride || (isAdmin() ? 'admin_update' : (isMember() ? 'member_submit' : 'guest'));
-        var payload = {
-            secret: syncSecret,
-            action: action,
-            auth: buildServerAuthPayload(),
-            claim: {
-                id: claimId || '',
-                member: sessionName || 'Guest',
-                plan: selectedPlan || 'None',
-                status: claimStatus || 'Not submitted',
-                note: claimNote || '',
-                loss: claimLoss || '',
-                proof: claimProof || '',
-                stack: claimStack || '',
-                payout: payoutAmount || '',
-                decision: decisionNote || '',
-                armedAt: activeCoverageArmedAt || '',
-                armedPlan: activeCoveragePlan || '',
-                armedStage: activeCoverageStage || '',
-                armedEnergy: activeCoverageArmedEnergy || '',
-                armedBoosterCd: activeCoverageArmedBoosterCd || '',
-                expiresAt: activeCoverageExpiresAt || '',
-                odDetectedAt: activeCoverageAutoSubmittedAt || '',
-                ruleCheck: activeCoverageRuleCheck || '',
-                detectStatus: activeCoverageDetectStatus || '',
-                updatedAt: new Date().toISOString()
-            }
-        };
-
-        return apiRequest('POST', '/api/claims/push', payload).then(function (data) {
-            backendStatus = data && data.ok ? 'Claim pushed' : ((data && data.error) ? data.error : 'Push failed');
-            lastSyncAt = new Date().toLocaleString();
-            if (data && data.claim) {
-                var rec = data.claim;
-                claimId = rec.id || claimId;
-                selectedClaimId = rec.id || selectedClaimId;
-                selectedPlan = rec.plan || selectedPlan;
-                claimStatus = rec.status || claimStatus;
-                claimNote = rec.note || claimNote;
-                claimLoss = rec.loss || claimLoss;
-                claimProof = rec.proof || claimProof;
-                claimStack = rec.stack || claimStack;
-                payoutAmount = rec.payout || payoutAmount;
-                decisionNote = rec.decision || decisionNote;
-                upsertCurrentClaim();
-            }
-            saveSession();
-            renderOverlay();
-            return data;
-        }).catch(function () {
-            backendStatus = 'Push failed';
-            lastSyncAt = new Date().toLocaleString();
-            saveSession();
-            renderOverlay();
-            return null;
-        });
-    }
-
-    function fetchSelectedClaimHistory() {
-        if (!selectedClaimId || !syncSecret || historyLoading) return Promise.resolve(null);
-        historyLoading = true;
-        return apiRequest('POST', '/api/claims/history', {
-            secret: syncSecret,
-            claim_id: selectedClaimId
-        }).then(function (data) {
-            historyLoading = false;
-            if (data && Array.isArray(data.history)) {
-                saveHistory(data.history.map(function (x) {
-                    return { at: x.at || x.createdAt || '', text: x.text || x.note || JSON.stringify(x) };
-                }));
-                renderOverlay();
-            }
-            return data;
-        }).catch(function () {
-            historyLoading = false;
-            return null;
-        });
-    }
-
-    function finishLoginSuccess(user, roleLabel) {
-        sessionRole = (user && user.role) ? user.role : (roleLabel || 'member');
-        sessionName = (user && user.name) ? user.name : 'Member';
-        authMode = 'backend';
-        backendStatus = roleLabel === 'admin' ? 'Admin login ok' : 'Member login ok';
-        settingsNotice = 'Login successful. Signed in as ' + sessionName + '.';
-        lastSyncAt = new Date().toLocaleString();
-        autoLoginTriedAt = new Date().toISOString();
-        saveSession();
-        renderOverlay();
-        if (typeof touchScriptUsage === 'function') touchScriptUsage();
-        if (typeof fetchWarTabState === 'function') fetchWarTabState();
-        if (typeof fetchFinancialSummary === 'function') fetchFinancialSummary();
-        if (typeof fetchUsageSummary === 'function') fetchUsageSummary();
-        if (typeof fetchXanaxRequestState === 'function') fetchXanaxRequestState();
-        if (typeof syncClaimsFromBackend === 'function') syncClaimsFromBackend();
-        if (typeof fetchAlerts === 'function') fetchAlerts();
-        if (typeof fetchActivations === 'function') fetchActivations();
-    }
-
-    function tryBackendLoginSilently() {
-        if (!singleApiKey || autoLoginBusy) return Promise.resolve(false);
-        autoLoginBusy = true;
-
-        return apiRequest('POST', '/api/auth/admin-key-login', {
-            secret: syncSecret,
-            api_key: singleApiKey
-        }).then(function (data) {
-            if (data && data.ok && data.user) {
-                finishLoginSuccess(data.user, 'admin');
-                autoLoginBusy = false;
-                return true;
-            }
-            return apiRequest('POST', '/api/auth/faction-login', {
-                secret: syncSecret,
-                api_key: singleApiKey,
-                faction_id: factionIdLock
-            }).then(function (memberData) {
-                if (memberData && memberData.ok && memberData.user) {
-                    finishLoginSuccess(memberData.user, 'member');
-                    autoLoginBusy = false;
-                    return true;
-                }
-                autoLoginBusy = false;
-                return false;
-            });
-        }).catch(function () {
-            autoLoginBusy = false;
-            return false;
-        });
-    }
-
-    function maybeAutoLogin(force) {
-        if (!singleApiKey) return Promise.resolve(false);
-        if (sessionRole !== 'guest' && !force) return Promise.resolve(true);
-
-        var now = Date.now();
-        var lastTry = Date.parse(String(autoLoginTriedAt || '')) || 0;
-        if (!force && lastTry && (now - lastTry) < 15000) {
-            return Promise.resolve(false);
-        }
-
-        autoLoginTriedAt = new Date().toISOString();
-        saveSession();
-        return tryBackendLoginSilently();
-    }
-
-    function singleBackendLogin() {
-        if (!apiBase || !syncSecret || !singleApiKey) {
-            window.alert('Enter your Torn API key first.');
-            return;
-        }
-
-        adminApiKey = singleApiKey;
-        memberApiKey = singleApiKey;
-
-        apiRequest('POST', '/api/auth/admin-key-login', {
-            api_key: singleApiKey,
-            secret: syncSecret
-        }).then(function (data) {
-            if (data && data.ok && data.user) {
-                sessionName = data.user.name || 'Admin';
-                sessionRole = 'admin';
-                authMode = 'backend-admin-key';
-                backendStatus = 'Admin login ok';
-                settingsNotice = 'Login successful. Signed in as admin.';
-                lastSyncAt = new Date().toLocaleString();
-                saveSession();
-                renderOverlay();
-                fetchWarTabState();
-                fetchFinancialSummary();
-                fetchXanaxRequestState();
-                fetchAlertsState();
-                fetchActivations();
-                syncClaimsFromBackend();
-                return;
-            }
-
-            return apiRequest('POST', '/api/auth/faction-login', {
-                api_key: singleApiKey,
-                faction_id: factionIdLock || '',
-                secret: syncSecret
-            }).then(function (memberData) {
-                if (memberData && memberData.ok && memberData.user) {
-                    sessionName = memberData.user.name || 'Member';
-                    sessionRole = memberData.user.role || 'member';
-                    authMode = 'backend-faction';
-                    backendStatus = 'Member login ok';
-                    settingsNotice = 'Login successful. Signed in as ' + (memberData.user.name || 'Member') + '.';
-                    lastSyncAt = new Date().toLocaleString();
-                    saveSession();
-                    renderOverlay();
-                    fetchWarTabState();
-                    fetchFinancialSummary();
-                    syncClaimsFromBackend();
-                } else {
-                    window.alert((memberData && memberData.error) ? memberData.error : 'Login failed.');
-                }
-            });
-        }).catch(function () {
-            window.alert('Login failed.');
-        });
-    }
-
-    function localLogin(role) {
-        var name = window.prompt(role === 'admin' ? 'Enter admin name' : 'Enter member name', sessionName || '');
-        if (!name) return;
-        var pass = window.prompt(role === 'admin' ? 'Enter admin passcode' : 'Enter member passcode', '');
-        if (pass === null) return;
-
-        if (role === 'admin' && pass !== 'wrathadmin') {
-            window.alert('Admin login failed.');
-            return;
-        }
-        if (role === 'member' && pass !== 'sinsmember') {
-            window.alert('Member login failed.');
-            return;
-        }
-
-        sessionRole = role;
-        sessionName = String(name).trim() || (role === 'admin' ? 'Admin' : 'Member');
-        authMode = 'local';
-        saveSession();
-        renderOverlay();
-    }
-
-    function logoutSession() {
-        sessionRole = 'guest';
-        sessionName = 'Guest';
-        authMode = 'local';
-        settingsNotice = 'Logged out.';
-        saveSession();
-        renderOverlay();
-    }
-
-    function selectPlan(name) {
-        selectedPlan = name;
-        saveSession();
-        renderOverlay();
-    }
-
-    function showPlanTerms(name) {
-        window.alert(getDetailedPlanTerms(name));
-    }
-
-    function valueOf(selector) {
-        var el = overlay && overlay.querySelector(selector);
-        return el ? String(el.value || '').trim() : '';
-    }
-
-    function updateClaimFilters() {
-        claimFilterStatus = valueOf('#si-claim-filter-status') || 'all';
-        claimFilterMember = valueOf('#si-claim-filter-member') || '';
-        claimSortMode = valueOf('#si-claim-sort-mode') || 'newest';
-        saveSession();
-        renderOverlay();
-    }
-
-    function submitClaim() {
-        if (!isMember()) {
-            window.alert('Log in as a member first.');
-            return;
-        }
-        if (!selectedPlan || selectedPlan === 'None') {
-            window.alert('Select a plan first.');
-            return;
-        }
-
-        claimNote = valueOf('#si-claim-note');
-        claimLoss = valueOf('#si-claim-loss');
-        claimProof = valueOf('#si-claim-proof');
-        claimStack = valueOf('#si-claim-stack');
-
-        if (!claimNote || !claimLoss || !claimProof || !claimStack) {
-            window.alert('Fill in all claim fields.');
-            return;
-        }
-        if (!stackMatchesPlan(selectedPlan, claimStack)) {
-            window.alert('Stack type does not match selected plan.\n\nRule: ' + getPlanRuleText(selectedPlan));
-            return;
-        }
-
-        if (!claimId) claimId = makeClaimId();
-        selectedClaimId = claimId;
-        claimStatus = 'Pending review';
-        upsertCurrentClaim();
-        addHistory((sessionName || 'Member') + ' submitted claim ' + claimId + '.');
-        saveSession();
-        pushCurrentClaimToBackend('member_submit');
-        activeTab = 'claims';
-        renderOverlay();
-    }
-
-    function adminSetClaimStatus(nextStatus) {
-        if (!isAdmin()) {
-            window.alert('Admin login required.');
-            return;
-        }
-        claimStatus = nextStatus;
-        payoutAmount = valueOf('#si-payout') || payoutAmount;
-        decisionNote = valueOf('#si-decision') || decisionNote;
-        upsertCurrentClaim();
-        addHistory((sessionName || 'Admin') + ' changed status to ' + nextStatus + '.');
-        saveSession();
-        pushCurrentClaimToBackend('admin_update');
-        renderOverlay();
-    }
-
-    function card(title, body) {
-        return '<div class="si-card"><div class="si-card-title">' + esc(title) + '</div>' + body + '</div>';
-    }
-
-    function tile(value, label) {
-        return '<div class="si-tile"><div class="si-tile-num">' + esc(value) + '</div><div class="si-tile-label">' + esc(label) + '</div></div>';
-    }
-
-
-    function fetchXanaxRequestState() {
-        if (!syncSecret) return Promise.resolve(null);
-        return apiRequest('POST', '/api/xanax-request/state', {
-            secret: syncSecret,
-            auth: buildServerAuthPayload()
-        }).then(function (data) {
-            var state = data && data.state;
-            if (state) {
-                xanaxRequestTotalOwed = Number(state.totalOwed || 0);
-                xanaxRequestRequested = !!state.requested;
-                xanaxRequestRequestedAt = state.requestedAt || '';
-                xanaxRequestRequestedBy = state.requestedBy || '';
-                xanaxRequestSentAt = state.sentAt || '';
-                xanaxRequestSentBy = state.sentBy || '';
-                xanaxRequestResetAt = state.resetAt || '';
-                xanaxRequestResetBy = state.resetBy || '';
-                xanaxRequestStatus = state.status || 'idle';
-                xanaxRequestViewerCanRequest = !!state.viewerCanRequest;
-                xanaxRequestViewerIsAdmin = !!state.viewerIsAdmin;
-                saveSession();
-                renderOverlay();
-            }
-            return data;
-        }).catch(function () { return null; });
-    }
-
-    function requestXanaxCut() {
-        return apiRequest('POST', '/api/xanax-request/request', {
-            secret: syncSecret,
-            auth: buildServerAuthPayload()
-        }).then(function (data) {
-            if (data && data.state) {
-                window.alert('Faction cut request sent to admin.');
-                return fetchXanaxRequestState();
-            }
-            window.alert((data && data.error) ? data.error : 'Request failed.');
-            return data;
-        }).catch(function () {
-            window.alert('Request failed.');
-            return null;
-        });
-    }
-
-    function markXanaxCutSent() {
-        return apiRequest('POST', '/api/xanax-request/mark-sent', {
-            secret: syncSecret,
-            auth: buildServerAuthPayload()
-        }).then(function (data) {
-            if (data && data.state) {
-                window.alert('Faction cut marked as sent.');
-                return fetchXanaxRequestState();
-            }
-            window.alert((data && data.error) ? data.error : 'Mark sent failed.');
-            return data;
-        }).catch(function () {
-            window.alert('Mark sent failed.');
-            return null;
-        });
-    }
-
-    function resetXanaxCutTotal() {
-        return apiRequest('POST', '/api/xanax-request/reset', {
-            secret: syncSecret,
-            auth: buildServerAuthPayload()
-        }).then(function (data) {
-            if (data && data.state) {
-                window.alert('Faction cut total reset.');
-                return fetchXanaxRequestState();
-            }
-            window.alert((data && data.error) ? data.error : 'Reset failed.');
-            return data;
-        }).catch(function () {
-            window.alert('Reset failed.');
-            return null;
-        });
-    }
-
-    function renderXanaxRequest() {
-        var requestBtn = xanaxRequestViewerCanRequest
-            ? '<div class="si-btnrow"><button id="si-xr-request" class="si-btn good">Request 15% Faction Cut</button></div>'
-            : '<div class="si-text">Leader and Co-Leader can request the faction cut. Admin can send and reset it.</div>';
-
-        var adminBtns = xanaxRequestViewerIsAdmin
-            ? '<div class="si-btnrow"><button id="si-xr-sent" class="si-btn">Mark Sent</button><button id="si-xr-reset" class="si-btn alt">Reset Total Owed</button></div>'
-            : '';
-
-        return card('Xanax Request',
-            '<div class="si-row"><span class="si-label">Total Owed</span><span>' + esc(xanaxRequestTotalOwed + ' Xanax') + '</span></div>'
-            + '<div class="si-row"><span class="si-label">Status</span><span>' + esc(xanaxRequestStatus || 'idle') + '</span></div>'
-            + '<div class="si-row"><span class="si-label">Requested By</span><span>' + esc(xanaxRequestRequestedBy || 'Not requested') + '</span></div>'
-            + '<div class="si-row"><span class="si-label">Requested At</span><span>' + esc(formatDateTime(xanaxRequestRequestedAt)) + '</span></div>'
-            + '<div class="si-row"><span class="si-label">Sent By</span><span>' + esc(xanaxRequestSentBy || 'Not sent') + '</span></div>'
-            + '<div class="si-row"><span class="si-label">Sent At</span><span>' + esc(formatDateTime(xanaxRequestSentAt)) + '</span></div>'
-            + '<div class="si-row"><span class="si-label">Last Reset By</span><span>' + esc(xanaxRequestResetBy || 'Never') + '</span></div>'
-            + '<div class="si-row"><span class="si-label">Last Reset At</span><span>' + esc(formatDateTime(xanaxRequestResetAt)) + '</span></div>'
-            + requestBtn
-            + adminBtns
-        );
-    }
-
-
-    function renderWarStackControls() {
-        var canManage = isAdmin() || sessionRole === 'leader' || sessionRole === 'co-leader';
-        var stateText = warTabEnabled ? 'Activated' : 'Inactive';
-        var buttons = canManage
-            ? '<div class="si-btnrow">'
-                + '<button id="si-war-on" class="si-btn good">Activate War Stack</button>'
-                + '<button id="si-war-off" class="si-btn alt">Deactivate War Stack</button>'
-              + '</div>'
-            : '<div class="si-text">Login with your Torn API key to manage War Stack.</div>';
-
-        return card('War Stack',
-            '<div class="si-row"><span class="si-label">Status</span><span class="si-badge">' + esc(stateText) + '</span></div>'
-            + '<div class="si-row"><span class="si-label">Updated By</span><span>' + esc(warTabUpdatedBy || 'Not set') + '</span></div>'
-            + '<div class="si-row"><span class="si-label">Updated At</span><span>' + esc(warTabUpdatedAt || 'Never') + '</span></div>'
-            + buttons
-        );
-    }
-
-
-    function renderWarStackTab() {
-        var greed = getGreedPlanData();
-        var greedIsActive = isCoverageActive() && activeCoveragePlan === 'Greed';
-        var greedCountdown = greedIsActive
-            ? '<div class="si-row"><span class="si-label">Timer</span><span>' + esc(formatRemaining(currentCoverageRemainingMs())) + '</span></div>'
-            : '<div class="si-row"><span class="si-label">Timer</span><span>Not active</span></div>';
-
-        var greedButtons = '<div class="si-btnrow">'
-            + '<button id="si-greed-select" class="si-btn">Select</button>'
-            + '<button id="si-greed-arm" class="si-btn ' + (greedIsActive ? 'good' : '') + '">' + (greedIsActive ? 'Activated' : 'Activate') + '</button>'
-            + '<button id="si-greed-terms" class="si-btn alt">Terms</button>'
-            + '</div>';
-
-        return ''
-            + card('War Stack Greed',
-                '<div class="si-row"><span class="si-label">Coverage</span><span>' + esc(greed.coverage) + '</span></div>'
-                + '<div class="si-row"><span class="si-label">Payment</span><span>' + esc(greed.payment) + '</span></div>'
-                + '<div class="si-row"><span class="si-label">Payout</span><span>' + esc(greed.payout) + '</span></div>'
-                + '<div class="si-row"><span class="si-label">Window</span><span>' + esc(greed.window) + '</span></div>'
-                + greedCountdown
-                + greedButtons
-            );
-    }
-
-    function renderOldPlanRows(rows) {
-        return rows.map(function (row) {
-            return '<div class="si-row"><span class="si-label">' + esc(row[0]) + '</span><span>' + esc(row[1]) + '</span></div>';
-        }).join('');
-    }
-
-    function renderRules() {
-        return ''
-            + card('Rules',
-                '<div class="si-text">1. Save your Torn API key in Settings and log in first.</div>'
-                + '<div class="si-text">2. Use only the correct plan for the stack or situation you are covering.</div>'
-                + '<div class="si-text">3. Make sure the required payment is sent for the plan before relying on coverage.</div>'
-                + '<div class="si-text">4. Read the plan Terms button carefully before activating any plan or Wrath stage.</div>'
-                + '<div class="si-text">5. If War Stack is active, only use War Stack plans inside that tab.</div>'
-                + '<div class="si-text">6. False, misleading, or rule-breaking claims can be denied.</div>'
-                + '<div class="si-text">7. Payout is only final after admin review and verification.</div>')
-            + card('How To Use It Properly To Receive Payment If You OD',
-                '<div class="si-text">Step 1: Open Settings, save your Torn API key, and log in.</div>'
-                + '<div class="si-text">Step 2: Go to Plans and choose the correct plan for what you are doing.</div>'
-                + '<div class="si-text">Step 3: Read the Terms button for that plan and make sure you match its rules.</div>'
-                + '<div class="si-text">Step 4: Activate the plan or the correct Wrath stage before you start.</div>'
-                + '<div class="si-text">Step 5: Stay within the active coverage window shown by the script.</div>'
-                + '<div class="si-text">Step 6: If an OD happens during the active window, the system can create a pending claim for review.</div>'
-                + '<div class="si-text">Step 7: Admin reviews the claim, payment proof, and plan rules before payout is approved.</div>')
-            + card('How It Works',
-                '<div class="si-text">Sinner\'s Insurance lets members log in with one Torn API key, activate a plan, and run a timed coverage window.</div>'
-                + '<div class="si-text">During an active window, the script checks for OD-style events and can submit a pending claim automatically.</div>'
-                + '<div class="si-text">Claims, payment checks, admin review, War Stack controls, and faction request tools are all managed through the overlay and backend.</div>'
-                + '<div class="si-text">Different plans have different payment, coverage, payout, and terms rules, so always follow the exact plan requirements.</div>');
-    }
-
-    function renderOverview() {
-        var financeTiles = '<div class="si-tiles">'
-            + tile(finReceiptCount, 'Claims')
-            + tile(finFactionCut + 'x', 'Faction Cut')
-            + tile(finPayoutCount, 'Payouts Verified')
-            + '</div>';
-
-        var financeCard = card('Insurance Overview',
-            financeTiles
-            + '<div class="si-row"><span class="si-label">Faction Cut</span><span>' + esc(finFactionCut + ' Xanax') + '</span></div>'
-            + '<div class="si-row"><span class="si-label">Member Payments Verified</span><span>' + esc(finMemberPayCount) + '</span></div>'
-            + '<div class="si-row"><span class="si-label">Admin Payouts Verified</span><span>' + esc(finPayoutCount) + '</span></div>'
-        );
-
-        var adminAlerts = isAdmin()
-            ? card('Admin Alerts',
-                '<div class="si-row"><span class="si-label">Unread Claims</span><span>' + esc(alertUnreadClaims) + '</span></div>'
-                + '<div class="si-row"><span class="si-label">Pending Activations</span><span>' + esc(alertPendingActivations) + '</span></div>'
-                + '<div class="si-row"><span class="si-label">Members Using Script</span><span>' + esc(getScriptUsersCount()) + '</span></div>')
-            : '';
-
-        var coverageInfo = '';
-        if (activeCoveragePlan) {
-            coverageInfo = card('Active Coverage',
-                '<div class="si-row"><span class="si-label">Plan</span><span>' + esc(activeCoveragePlan || 'None') + '</span></div>'
-                + '<div class="si-row"><span class="si-label">Stage</span><span>' + esc(activeCoverageStage || '-') + '</span></div>'
-                + '<div class="si-row"><span class="si-label">Payout</span><span>' + esc(getPlanPayoutText(activeCoveragePlan, activeCoverageStage) || '-') + '</span></div>'
-                + '<div class="si-row"><span class="si-label">Status</span><span class="si-badge">' + esc(isCoverageActive() ? 'Active' : (activeCoverageDetectStatus || 'Idle')) + '</span></div>'
-                + '<div class="si-row"><span class="si-label">Expires</span><span>' + esc(formatDateTime(activeCoverageExpiresAt)) + '</span></div>'
-                + '<div class="si-row"><span class="si-label">Remaining</span><span>' + esc(isCoverageActive() ? formatRemaining(currentCoverageRemainingMs()) : 'Not active') + '</span></div>'
-            );
-        }
-
-        var warStackCard = canManageWarStackUi() ? renderWarStackControls() : '';
-
-        return financeCard + adminAlerts + coverageInfo + warStackCard;
-    }
-
-    function renderPlans() {
-        return PLANS.map(function (p) {
-            var rows = renderOldPlanRows(p.oldRows || []);
-            var planIsActive = isCoverageActive() && activeCoveragePlan === p.name && !activeCoverageStage;
-            var planCountdown = planIsActive
-                ? '<div class="si-row"><span class="si-label">Timer</span><span>' + esc(formatRemaining(currentCoverageRemainingMs())) + '</span></div>'
-                : '';
-
-            var wrathStages = '';
-            if (p.stages && p.stages.length) {
-                wrathStages = '<div class="si-wrath-wrap">'
-                    + p.stages.map(function (s) {
-                        var stageIsActive = isCoverageActive() && activeCoveragePlan === p.name && activeCoverageStage === s.stage;
-                        var stageCountdown = stageIsActive
-                            ? '<div class="si-row"><span class="si-label">Timer</span><span>' + esc(formatRemaining(currentCoverageRemainingMs())) + '</span></div>'
-                            : '';
-                        return '<div class="si-wrath-stage">'
-                            + '<div class="si-wrath-title">' + esc(s.stage) + '</div>'
-                            + '<div class="si-row"><span class="si-label">Payout</span><span>' + esc(s.payout) + '</span></div>'
-                            + '<div class="si-row"><span class="si-label">Payment</span><span>' + esc(s.payment) + '</span></div>'
-                            + '<div class="si-row"><span class="si-label">Terms</span><span>' + esc(s.terms) + '</span></div>'
-                            + '<div class="si-row"><span class="si-label">Window</span><span>' + esc(s.window) + '</span></div>'
-                            + stageCountdown
-                            + '<div class="si-btnrow">'
-                                + '<button class="si-btn" data-action="select-stage" data-plan="' + esc(p.name) + '" data-stage="' + esc(s.stage) + '">Select ' + esc(s.stage) + '</button>'
-                                + '<button class="si-btn ' + (stageIsActive ? 'good' : '') + '" data-action="arm-stage" data-plan="' + esc(p.name) + '" data-stage="' + esc(s.stage) + '">' + (stageIsActive ? 'Activated ' + esc(s.stage) : 'Activate ' + esc(s.stage)) + '</button>'
-                            + '</div>'
-                        + '</div>';
-                    }).join('')
-                    + '</div>';
-            }
-
-            var buttonRow = '<div class="si-btnrow">'
-                + '<button class="si-btn" data-action="select-plan" data-plan="' + esc(p.name) + '">Select</button>'
-                + ((p.name === 'Pride' || p.name === 'Envy')
-                    ? '<button class="si-btn ' + (planIsActive ? 'good' : '') + '" data-action="arm-plan" data-plan="' + esc(p.name) + '">' + (planIsActive ? 'Activated' : 'Activate') + '</button>'
-                    : '')
-                + '<button class="si-btn alt" data-action="terms-plan" data-plan="' + esc(p.name) + '">Terms</button>'
-                + '</div>';
-
-            return card(p.name, rows + planCountdown + wrathStages + buttonRow);
-        }).join('');
-    }
-
-    function renderClaims() {
-        if (!isAdmin()) {
-            var recent = getRecentMemberClaims(6);
-            return card('Your Recent Claims',
-                recent.length ? recent.map(function (item) {
-                    return '<div class="si-history-item">'
-                        + '<div class="si-history-at">' + esc(item.updatedAt || '') + '</div>'
-                        + '<div class="si-text"><strong>' + esc(item.id || '') + '</strong> | '
-                        + esc(item.plan || 'None') + ' | ' + esc(item.status || 'Unknown')
-                        + (item.loss ? ' | Loss: ' + esc(item.loss) : '')
-                        + '</div>'
-                        + (item.note ? '<div class="si-text">' + esc(item.note) + '</div>' : '')
-                        + '</div>';
-                }).join('') : '<div class="si-text">No recent claims yet.</div>');
-        }
-
-        syncFromSelectedClaim();
-        var items = getFilteredClaimsDbItems();
-        var history = getClaimHistoryItems();
-        var options = items.map(function (item) {
-            return '<option value="' + esc(item.id) + '"' + (selectedClaimId === item.id ? ' selected' : '') + '>'
-                + esc(item.id + ' | ' + item.member + ' | ' + item.status)
-                + '</option>';
-        }).join('');
-
-        return ''
-            + card('Claim Filters',
-                '<div class="si-field"><label>Status</label><select id="si-claim-filter-status" class="si-input">'
-                + '<option value="all"' + (claimFilterStatus === 'all' ? ' selected' : '') + '>All</option>'
-                + '<option value="Pending review"' + (claimFilterStatus === 'Pending review' ? ' selected' : '') + '>Pending review</option>'
-                + '<option value="Under review"' + (claimFilterStatus === 'Under review' ? ' selected' : '') + '>Under review</option>'
-                + '<option value="Approved"' + (claimFilterStatus === 'Approved' ? ' selected' : '') + '>Approved</option>'
-                + '<option value="Denied"' + (claimFilterStatus === 'Denied' ? ' selected' : '') + '>Denied</option>'
-                + '<option value="Paid"' + (claimFilterStatus === 'Paid' ? ' selected' : '') + '>Paid</option>'
-                + '</select></div>'
-                + '<div class="si-field"><label>Member Filter</label><input id="si-claim-filter-member" class="si-input" value="' + esc(claimFilterMember) + '" placeholder="Search member"></div>'
-                + '<div class="si-field"><label>Sort</label><select id="si-claim-sort-mode" class="si-input">'
-                + '<option value="newest"' + (claimSortMode === 'newest' ? ' selected' : '') + '>Newest</option>'
-                + '<option value="oldest"' + (claimSortMode === 'oldest' ? ' selected' : '') + '>Oldest</option>'
-                + '<option value="member_az"' + (claimSortMode === 'member_az' ? ' selected' : '') + '>Member A-Z</option>'
-                + '<option value="status"' + (claimSortMode === 'status' ? ' selected' : '') + '>Status</option>'
-                + '</select></div>'
-                + '<div class="si-btnrow"><button id="si-apply-filters" class="si-btn alt">Apply Filters</button></div>')
-            + card('Current Claim',
-                '<div class="si-field"><label>Saved Claims</label><select id="si-claim-select" class="si-input"><option value="">Select claim</option>' + options + '</select></div>'
-                + '<div class="si-field"><label>Plan</label><div class="si-text">' + esc(selectedPlan) + '</div></div>'
-                + '<div class="si-field"><label>Claim Note</label><textarea id="si-claim-note" class="si-textarea" placeholder="Describe what happened">' + esc(claimNote) + '</textarea></div>'
-                + '<div class="si-field"><label>Loss</label><input id="si-claim-loss" class="si-input" value="' + esc(claimLoss) + '" placeholder="Loss amount"></div>'
-                + '<div class="si-field"><label>Proof</label><input id="si-claim-proof" class="si-input" value="' + esc(claimProof) + '" placeholder="Proof or logs"></div>'
-                + '<div class="si-field"><label>Stack Type</label><input id="si-claim-stack" class="si-input" value="' + esc(claimStack) + '" placeholder="Xanax / E-DVD / Mixed"></div>'
-                + '<div class="si-row"><span class="si-label">Status</span><span class="si-status">' + esc(claimStatus) + '</span></div>'
-                + '<div class="si-row"><span class="si-label">Auto Window</span><span>' + esc(activeCoveragePlan ? (activeCoveragePlan + (activeCoverageStage ? ' ' + activeCoverageStage : '')) : 'None') + '</span></div>'
-                + '<div class="si-row"><span class="si-label">Detect</span><span>' + esc(activeCoverageDetectStatus || 'idle') + '</span></div>'
-                + '<div class="si-btnrow"><button id="si-submit-claim" class="si-btn">Submit Claim</button></div>')
-            + card('Admin Review',
-                '<div class="si-field"><label>Payout</label><input id="si-payout" class="si-input" value="' + esc(payoutAmount) + '" placeholder="Payout amount"></div>'
-                + '<div class="si-field"><label>Decision Note</label><textarea id="si-decision" class="si-textarea" placeholder="Admin note">' + esc(decisionNote) + '</textarea></div>'
-                + '<div class="si-btnstack">'
-                + '<button id="si-under-review" class="si-btn alt">Under Review</button>'
-                + '<button id="si-approve" class="si-btn good">Approve</button>'
-                + '<button id="si-deny" class="si-btn bad">Deny</button>'
-                + '<button id="si-paid" class="si-btn">Mark Paid</button>'
-                + '</div>')
-            + card('Claim History',
-                history.length ? history.map(function (item) {
-                    return '<div class="si-history-item"><div class="si-history-at">' + esc(item.at) + '</div><div class="si-text">' + esc(item.text) + '</div></div>';
-                }).join('') : '<div class="si-text">No history yet.</div>');
-    }
-
-    function renderSettings() {
-        var maskedKey = maskApiKeyForDisplay(singleApiKey);
-        return ''
-            + card('Torn Login',
-                '<div class="si-field"><label>Torn API Key</label><input id="si-single-api-key" type="password" class="si-input" value="' + esc(singleApiKey) + '" placeholder="Enter your Torn API key"></div>'
-                + '<div class="si-row"><span class="si-label">Saved Key</span><span>' + esc(singleApiKey ? maskedKey : 'Not saved') + '</span></div>'
-                + '<div class="si-btnrow">'
-                + '<button id="si-save-settings" class="si-btn">Save API Key</button>'
-                + '<button id="si-single-login" class="si-btn good">Login</button>'
-                + '<button id="si-logout" class="si-btn alt">Logout</button>'
-                + '</div>'
-                + '<div class="si-text">Use one Torn API key to log in. After saving, the key is masked in the status display.</div>')
-            + card('API Key Status',
-                '<div class="si-row"><span class="si-label">Login Status</span><span>' + esc(sessionRole === 'guest' ? 'Not logged in' : ('Logged in as ' + sessionName + ' (' + sessionRole + ')')) + '</span></div>'
-                + '<div class="si-text">' + esc(settingsNotice || 'Waiting for API key save or login.') + '</div>')
-            + card('ToS',
-                '<div class="si-text">By using Sinner\'s Insurance, you agree that coverage, activations, and claims are subject to faction rules and review. Payouts are only valid after approval and verification. False claims, false proofs, or abuse of the system may lead to denial and removal of access.</div>')
-            + card('API Key Storage and Usage',
-                '<div class="si-text">Your Torn API key is stored locally in userscript storage on your device. It is used only for Torn login, plan activation, OD scan checks during active windows, and syncing insurance data with the Sinner\'s Insurance backend. Keep your key private and rotate it if your device or install is no longer trusted.</div>');
-    }
-
-    function bindEvents() {
-        if (!overlay) return;
-
-        overlay.querySelectorAll('[data-tab]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                activeTab = btn.getAttribute('data-tab') || 'overview';
-                saveSession();
-                renderOverlay();
-                if (activeTab === 'overview') {
-                    fetchFinancialSummary();
-                    fetchWarTabState();
-                }
-                if (activeTab === 'xanax_request') fetchXanaxRequestState();
-                if (activeTab === 'claims') fetchSelectedClaimHistory();
-            });
-        });
-
-        overlay.querySelectorAll('[data-plan]').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var name = btn.getAttribute('data-plan') || '';
-                var action = btn.getAttribute('data-action') || '';
-                var stage = btn.getAttribute('data-stage') || '';
-                if (action === 'select-plan') selectPlan(name);
-                if (action === 'terms-plan') showPlanTerms(name);
-                if (action === 'arm-plan') armPlanCoverage(name, '');
-                if (action === 'arm-stage') armPlanCoverage(name, stage);
-            });
-        });
-
-        var closeBtn = overlay.querySelector('#si-close-btn');
-        if (closeBtn) closeBtn.addEventListener('click', closeOverlay);
-
-        var saveBtn = overlay.querySelector('#si-save-settings');
-        if (saveBtn) saveBtn.addEventListener('click', function () {
-            singleApiKey = valueOf('#si-single-api-key') || '';
-            adminApiKey = singleApiKey;
-            memberApiKey = singleApiKey;
-            settingsNotice = singleApiKey ? 'API key saved successfully.' : 'No API key saved yet.';
-            saveSession();
-            renderOverlay();
-            maybeAutoLogin(true);
-        });
-
-        var applyFiltersBtn = overlay.querySelector('#si-apply-filters');
-        if (applyFiltersBtn) applyFiltersBtn.addEventListener('click', updateClaimFilters);
-
-        var testBtn = overlay.querySelector('#si-test-backend');
-        if (testBtn) testBtn.addEventListener('click', testBackendConnection);
-
-        var pullBtn = overlay.querySelector('#si-pull-claims');
-        if (pullBtn) pullBtn.addEventListener('click', syncClaimsFromBackend);
-
-        var singleLoginBtn = overlay.querySelector('#si-single-login');
-        if (singleLoginBtn) singleLoginBtn.addEventListener('click', singleBackendLogin);
-
-        var warOnBtn = overlay.querySelector('#si-war-on');
-        if (warOnBtn) warOnBtn.addEventListener('click', function () { setWarTabState(true); });
-
-        var warOffBtn = overlay.querySelector('#si-war-off');
-        if (warOffBtn) warOffBtn.addEventListener('click', function () { setWarTabState(false); });
-
-        var scanNowBtn = overlay.querySelector('#si-scan-now');
-        if (scanNowBtn) scanNowBtn.addEventListener('click', runCoverageScan);
-
-        var cancelCoverageBtn = overlay.querySelector('#si-cancel-coverage');
-        if (cancelCoverageBtn) cancelCoverageBtn.addEventListener('click', cancelCoverageState);
-
-        var greedSelectBtn = overlay.querySelector('#si-greed-select');
-        if (greedSelectBtn) greedSelectBtn.addEventListener('click', function () {
-            selectedPlan = 'Greed';
-            saveSession();
-            renderOverlay();
-        });
-
-        var greedArmBtn = overlay.querySelector('#si-greed-arm');
-        if (greedArmBtn) greedArmBtn.addEventListener('click', function () {
-            armPlanCoverage('Greed', '');
-        });
-
-        var greedTermsBtn = overlay.querySelector('#si-greed-terms');
-        if (greedTermsBtn) greedTermsBtn.addEventListener('click', function () {
-            window.alert(getGreedPlanData().terms);
-        });
-
-        var xrRequestBtn = overlay.querySelector('#si-xr-request');
-        if (xrRequestBtn) xrRequestBtn.addEventListener('click', requestXanaxCut);
-
-        var xrSentBtn = overlay.querySelector('#si-xr-sent');
-        if (xrSentBtn) xrSentBtn.addEventListener('click', markXanaxCutSent);
-
-        var xrResetBtn = overlay.querySelector('#si-xr-reset');
-        if (xrResetBtn) xrResetBtn.addEventListener('click', resetXanaxCutTotal);
-
-        var refreshActivationsBtn = overlay.querySelector('#si-refresh-activations');
-        if (refreshActivationsBtn) refreshActivationsBtn.addEventListener('click', fetchActivations);
-
-        var activationSelect = overlay.querySelector('#si-activation-select');
-        if (activationSelect) activationSelect.addEventListener('change', function () {
-            selectedActivationId = activationSelect.value || '';
-            saveSession();
-            renderOverlay();
-        });
-
-        var actVerifyPaymentBtn = overlay.querySelector('#si-act-verify-payment');
-        if (actVerifyPaymentBtn) actVerifyPaymentBtn.addEventListener('click', function () {
-            var note = valueOf('#si-activation-admin-note') || '';
-            if (!selectedActivationId) return;
-            pushActivation('admin_verify_payment', { id: selectedActivationId, reviewNote: note });
-        });
-
-        var actVerifyReceiptBtn = overlay.querySelector('#si-act-verify-receipt');
-        if (actVerifyReceiptBtn) actVerifyReceiptBtn.addEventListener('click', function () {
-            var note = valueOf('#si-activation-admin-note') || '';
-            if (!selectedActivationId) return;
-            pushActivation('admin_verify_receipt', { id: selectedActivationId, reviewNote: note });
-        });
-
-        var actRejectBtn = overlay.querySelector('#si-act-reject');
-        if (actRejectBtn) actRejectBtn.addEventListener('click', function () {
-            var note = valueOf('#si-activation-admin-note') || '';
-            if (!selectedActivationId) return;
-            pushActivation('admin_reject', { id: selectedActivationId, reviewNote: note });
-        });
-
-        var logoutBtn = overlay.querySelector('#si-logout');
-        if (logoutBtn) logoutBtn.addEventListener('click', logoutSession);
-
-        var submitBtn = overlay.querySelector('#si-submit-claim');
-        if (submitBtn) submitBtn.addEventListener('click', submitClaim);
-
-        var claimSelect = overlay.querySelector('#si-claim-select');
-        if (claimSelect) claimSelect.addEventListener('change', function () {
-            selectedClaimId = claimSelect.value || '';
-            syncFromSelectedClaim();
-            saveSession();
-            renderOverlay();
-            fetchSelectedClaimHistory();
-        });
-
-        var approveBtn = overlay.querySelector('#si-approve');
-        if (approveBtn) approveBtn.addEventListener('click', function () { adminSetClaimStatus('Approved'); });
-
-        var underReviewBtn = overlay.querySelector('#si-under-review');
-        if (underReviewBtn) underReviewBtn.addEventListener('click', function () { adminSetClaimStatus('Under review'); });
-
-        var denyBtn = overlay.querySelector('#si-deny');
-        if (denyBtn) denyBtn.addEventListener('click', function () { adminSetClaimStatus('Denied'); });
-
-        var paidBtn = overlay.querySelector('#si-paid');
-        if (paidBtn) paidBtn.addEventListener('click', function () { adminSetClaimStatus('Paid'); });
-    }
-
-    function openOverlay() {
-        ensureMounted();
-        if (overlay) overlay.classList.add('open');
-        if (backdrop) backdrop.classList.add('open');
-    }
-
-    function closeOverlay() {
-        if (overlay) overlay.classList.remove('open');
-        if (backdrop) backdrop.classList.remove('open');
-    }
-
-    function renderOverlay() {
-        if (activeTab === 'claims' && !canSeeClaimsUi()) activeTab = 'overview';
-        if (activeTab === 'activations') activeTab = 'overview';
-        if (activeTab === 'xanax_request' && !canSeeXanaxRequestUi()) activeTab = 'overview';
-        if (activeTab === 'war_stack' && !(warTabEnabled && canManageWarStackUi())) activeTab = 'overview';
-        ensureMounted();
-        if (!overlay) return;
-
-        var body = renderOverview();
-        if (activeTab === 'rules') body = renderRules();
-        if (activeTab === 'plans') body = renderPlans();
-        if (activeTab === 'claims') body = renderClaims();
-        if (activeTab === 'xanax_request') body = renderXanaxRequest();
-        if (activeTab === 'war_stack') body = renderWarStackTab();
-        if (activeTab === 'settings') body = renderSettings();
-
-        overlay.innerHTML = ''
-            + '<div class="si-head">'
-            + '<div><div class="si-title">Sinners Insurance</div><div class="si-sub">thin classic panel</div></div>'
-            + '<button id="si-close-btn" class="si-close" type="button">×</button>'
-            + '</div>'
-            + '<div class="si-tabs">'
-            + '<button class="si-tab ' + (activeTab === 'rules' ? 'active' : '') + '" data-tab="rules">RULES</button>'
-            + '<button class="si-tab ' + (activeTab === 'overview' ? 'active' : '') + '" data-tab="overview">Overview</button>'
-            + '<button class="si-tab ' + (activeTab === 'plans' ? 'active' : '') + '" data-tab="plans">Plans</button>'
-            + (canSeeClaimsUi() ? '<button class="si-tab ' + (activeTab === 'claims' ? 'active' : '') + '" data-tab="claims">Claims' + (alertUnreadClaims ? ' (' + alertUnreadClaims + ')' : '') + '</button>' : '')
-            + (warTabEnabled && canManageWarStackUi() ? '<button class=\"si-tab ' + (activeTab === 'war_stack' ? 'active' : '') + '\" data-tab=\"war_stack\">War Stack</button>' : '')
-            + (canSeeXanaxRequestUi() ? '<button class="si-tab ' + (activeTab === 'xanax_request' ? 'active' : '') + '" data-tab="xanax_request">Xanax Request</button>' : '')
-            + '<button class="si-tab ' + (activeTab === 'settings' ? 'active' : '') + '" data-tab="settings">Settings</button>'
-            + '</div>'
-            + '<div class="si-body">' + body + '</div>';
-
-        bindEvents();
-    }
-
-    function addStyles() {
-        if (document.getElementById('si-pda-style-flag')) return;
-        GM_addStyle(`
-#si-pda-launcher{position:fixed!important;left:10px!important;bottom:10px!important;z-index:2147483647!important;width:118px!important;height:28px!important;display:flex!important;align-items:center!important;justify-content:center!important;}
-#si-pda-launcher button{width:118px!important;height:28px!important;border-radius:9px!important;border:1px solid rgba(205,164,74,.5)!important;background:linear-gradient(180deg,rgba(90,12,18,.95),rgba(35,8,10,.98))!important;color:#f5df9d!important;font-size:10px!important;font-weight:800!important;letter-spacing:.1px!important;box-shadow:0 8px 20px rgba(0,0,0,.35)!important;}
-#si-pda-backdrop{position:fixed!important;inset:0!important;background:rgba(0,0,0,.62)!important;z-index:2147483645!important;display:none!important;}
-#si-pda-backdrop.open{display:block!important;}
-#si-pda-overlay{position:fixed!important;left:10px!important;right:10px!important;top:78px!important;bottom:84px!important;z-index:2147483646!important;display:none!important;flex-direction:column!important;overflow:hidden!important;border-radius:14px!important;border:1px solid rgba(201,162,80,.22)!important;background:linear-gradient(180deg,rgba(28,10,14,.99),rgba(8,5,8,.99))!important;color:#f7ead0!important;box-shadow:0 20px 55px rgba(0,0,0,.55)!important;}
-#si-pda-overlay.open{display:flex!important;}
-#si-pda-overlay .si-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;padding:10px 12px!important;border-bottom:1px solid rgba(201,162,80,.18)!important;}
-#si-pda-overlay .si-title{font-size:14px!important;font-weight:900!important;color:#f2de9f!important;text-transform:uppercase!important;}
-#si-pda-overlay .si-sub{font-size:10px!important;color:rgba(241,223,171,.78)!important;text-transform:uppercase!important;}
-#si-pda-overlay .si-close{width:40px!important;height:40px!important;border-radius:10px!important;border:1px solid rgba(201,162,80,.22)!important;background:linear-gradient(180deg,rgba(72,14,18,.96),rgba(24,7,10,.98))!important;color:#f2de9f!important;font-size:22px!important;}
-#si-pda-overlay .si-tabs{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important;padding:8px 8px 0!important;}
-#si-pda-overlay .si-tab{min-height:32px!important;border-radius:9px!important;border:1px solid rgba(201,162,80,.16)!important;background:linear-gradient(180deg,rgba(60,12,16,.85),rgba(24,7,10,.92))!important;color:#f1dfab!important;font-size:10px!important;font-weight:800!important;}
-#si-pda-overlay .si-tab.active{background:linear-gradient(180deg,rgba(124,19,26,.95),rgba(64,10,15,.98))!important;}
-#si-pda-overlay .si-body{overflow:auto!important;padding:8px!important;display:grid!important;gap:8px!important;}
-#si-pda-overlay .si-card{border-radius:12px!important;border:1px solid rgba(201,162,80,.14)!important;background:rgba(255,255,255,.03)!important;padding:10px!important;}
-#si-pda-overlay .si-card-title{font-size:11px!important;font-weight:900!important;color:#f0dd9f!important;text-transform:uppercase!important;margin-bottom:8px!important;}
-#si-pda-overlay .si-grid3{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;}
-#si-pda-overlay .si-tile{border-radius:10px!important;padding:10px!important;background:rgba(255,255,255,.02)!important;border:1px solid rgba(201,162,80,.12)!important;text-align:center!important;}
-#si-pda-overlay .si-tile-num{font-size:16px!important;font-weight:900!important;color:#f7e4a7!important;}
-#si-pda-overlay .si-tile-label{font-size:10px!important;font-weight:800!important;color:rgba(241,223,171,.76)!important;text-transform:uppercase!important;}
-#si-pda-overlay .si-row{display:flex!important;justify-content:space-between!important;gap:10px!important;padding:7px 0!important;border-bottom:1px solid rgba(201,162,80,.08)!important;}
-#si-pda-overlay .si-label{color:#f2de9f!important;font-weight:800!important;font-size:11px!important;text-transform:uppercase!important;}
-#si-pda-overlay .si-text{font-size:13px!important;line-height:1.45!important;color:#f8f0dd!important;}
-#si-pda-overlay .si-plan-head{display:flex!important;justify-content:space-between!important;gap:10px!important;align-items:center!important;margin-bottom:10px!important;}
-#si-pda-overlay .si-plan-name{font-size:14px!important;font-weight:900!important;color:#f2de9f!important;text-transform:uppercase!important;}
-#si-pda-overlay .si-badge,#si-pda-overlay .si-status{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:28px!important;padding:0 10px!important;border-radius:999px!important;border:1px solid rgba(201,162,80,.18)!important;background:rgba(119,17,22,.22)!important;color:#f1dfab!important;font-size:11px!important;font-weight:900!important;}
-#si-pda-overlay .si-stat-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;margin-bottom:10px!important;}
-#si-pda-overlay .si-stat{border-radius:10px!important;padding:8px!important;background:rgba(255,255,255,.02)!important;border:1px solid rgba(201,162,80,.12)!important;}
-#si-pda-overlay .si-stat-k{font-size:10px!important;font-weight:800!important;color:rgba(241,223,171,.72)!important;text-transform:uppercase!important;margin-bottom:4px!important;}
-#si-pda-overlay .si-stat-v{font-size:12px!important;font-weight:800!important;color:#f8f0dd!important;}
-#si-pda-overlay .si-btnrow,#si-pda-overlay .si-btnstack{display:flex!important;flex-wrap:wrap!important;gap:8px!important;}
-#si-pda-overlay .si-btnstack{display:grid!important;grid-template-columns:1fr!important;}
-#si-pda-overlay .si-btn{min-height:40px!important;padding:0 12px!important;border-radius:10px!important;border:1px solid rgba(201,162,80,.24)!important;background:linear-gradient(180deg,rgba(124,19,26,.95),rgba(64,10,15,.98))!important;color:#f7e4a7!important;font-size:11px!important;font-weight:900!important;text-transform:uppercase!important;}
-#si-pda-overlay .si-btn.alt{background:linear-gradient(180deg,rgba(60,12,16,.92),rgba(24,7,10,.96))!important;}
-#si-pda-overlay .si-btn.good{background:linear-gradient(180deg,rgba(20,112,58,.94),rgba(12,66,34,.98))!important;}
-#si-pda-overlay .si-btn.bad{background:linear-gradient(180deg,rgba(120,26,32,.94),rgba(70,12,18,.98))!important;}
-#si-pda-overlay .si-field{display:grid!important;gap:6px!important;margin-bottom:10px!important;}
-#si-pda-overlay .si-field label{font-size:11px!important;font-weight:800!important;color:#f2de9f!important;text-transform:uppercase!important;}
-#si-pda-overlay .si-input,#si-pda-overlay .si-textarea{width:100%!important;box-sizing:border-box!important;border-radius:10px!important;border:1px solid rgba(201,162,80,.18)!important;background:rgba(255,255,255,.04)!important;color:#f8f0dd!important;padding:11px!important;font-size:14px!important;}
-#si-pda-overlay .si-textarea{min-height:92px!important;resize:none!important;}
-#si-pda-overlay .si-history-item{border-radius:10px!important;background:rgba(255,255,255,.02)!important;border:1px solid rgba(201,162,80,.10)!important;padding:10px!important;margin-bottom:8px!important;}
-#si-pda-overlay .si-history-at{font-size:10px!important;color:rgba(241,223,171,.72)!important;margin-bottom:4px!important;}
-#si-pda-overlay .si-wrath-wrap{display:grid!important;gap:8px!important;margin:8px 0!important;}
-#si-pda-overlay .si-wrath-stage{border-radius:10px!important;padding:8px!important;background:rgba(255,255,255,.02)!important;border:1px solid rgba(201,162,80,.12)!important;}
-#si-pda-overlay .si-wrath-title{font-size:11px!important;font-weight:900!important;color:#f7e4a7!important;text-transform:uppercase!important;margin-bottom:6px!important;}
-`);
-        var flag = document.createElement('div');
-        flag.id = 'si-pda-style-flag';
-        flag.style.display = 'none';
-        document.documentElement.appendChild(flag);
-    }
-
-    function ensureMounted() {
-        addStyles();
-
-        if (!document.body) return;
-
-        if (!backdrop || !document.body.contains(backdrop)) {
-            backdrop = document.createElement('div');
-            backdrop.id = 'si-pda-backdrop';
-            backdrop.addEventListener('click', closeOverlay);
-            document.body.appendChild(backdrop);
-        }
-
-        if (!overlay || !document.body.contains(overlay)) {
-            overlay = document.createElement('div');
-            overlay.id = 'si-pda-overlay';
-            document.body.appendChild(overlay);
-        }
-
-        if (!launcher || !document.body.contains(launcher)) {
-            launcher = document.createElement('div');
-            launcher.id = 'si-pda-launcher';
-            launcher.innerHTML = '<button type="button">💊 Sinner\'s Insurance</button>';
-            document.body.appendChild(launcher);
-            var btn = launcher.querySelector('button');
-            if (btn) btn.addEventListener('click', openOverlay);
-        }
-        if (launcher) {
-            launcher.style.display = 'none';
-            launcher.style.opacity = '0';
-            launcher.style.pointerEvents = 'none';
-        }
-    }
-
     function boot() {
-        ensureMounted();
-        ensureCoverageTimer();
-        maybeAutoLogin(false);
-        fetchXanaxRequestState();
-        fetchAlertsState();
-        fetchActivations();
-        renderOverlay();
-        if (syncSecret) {
-            fetchWarTabState();
-            fetchFinancialSummary();
-            syncClaimsFromBackend();
+        if (!document.body) {
+            setTimeout(boot, 250);
+            return;
         }
-        if (isCoverageActive()) runCoverageScan();
-        if (!remountTimer) {
-            remountTimer = setInterval(function () {
-                if (!document.body) return;
-                ensureMounted();
-            }, 2000);
+
+        ensureMounted();
+        restartPolling();
+        startRemountWatch();
+        try { setTimeout(autoFillBountyPageFromWarHub, 500); } catch (_e_fill) {}
+
+        if (isLoggedIn()) {
+            loadState().then(function () {
+                renderBody();
+            }).catch(function (err) {
+                
+                renderBody();
+            });
+        } else {
+            renderBody();
         }
     }
 
-    window.__FRIES_INSURANCE_BRIDGE__ = {
-        open: function () {
-            try { ensureMounted(); } catch (_e) {}
-            try {
-                if (launcher) {
-                    launcher.style.display = 'none';
-                    launcher.style.opacity = '0';
-                    launcher.style.pointerEvents = 'none';
-                }
-            } catch (_e2) {}
-            try { openOverlay(); } catch (e) {
-                try {
-                    if (overlay) overlay.classList.add('open');
-                    if (backdrop) backdrop.classList.add('open');
-                } catch (_e3) {}
-            }
-        },
-        close: function () {
-            try { closeOverlay(); } catch (e) {
-                try {
-                    if (overlay) overlay.classList.remove('open');
-                    if (backdrop) backdrop.classList.remove('open');
-                } catch (_e2) {}
-            }
-        },
-        toggle: function () {
-            try {
-                ensureMounted();
-                if (overlay && overlay.classList.contains('open')) {
-                    closeOverlay();
-                } else {
-                    openOverlay();
-                }
-            } catch (e) {}
-        },
-        overlayEl: function () { return overlay; },
-        launcherEl: function () { return launcher; }
-    };
+    function startWarHubBoot() {
+        try { boot(); } catch (err) {
+            
+            setTimeout(function () { try { ensureMounted(); renderBody(); } catch (_e) {} }, 500);
+        }
+        setTimeout(function () { try { ensureMounted(); } catch (_e) {} }, 1000);
+        setTimeout(function () { try { ensureMounted(); } catch (_e) {} }, 2500);
+    }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', boot);
+        document.addEventListener('DOMContentLoaded', startWarHubBoot, { once: true });
+        setTimeout(startWarHubBoot, 1000);
     } else {
-        boot();
+        startWarHubBoot();
     }
+
 })();
-
-/* ===== Embedded Giveaway / Lottery module ===== */
-
-// ==UserScript==
-// @name         Torn Giveaway Overlay
-// @namespace    torn.giveaway.overlay
-// @version      1.4.3
-// @description  Giveaway overlay for Torn with entry requirement, reward, countdown, entrants, winners, and admin controls, plus a visual wheel tab.
-// @author       OpenAI
-// @match        https://www.torn.com/*
-// @match        https://torn.com/*
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @grant        GM_addStyle
-// @grant        GM_xmlhttpRequest
-// @connect      *
-// @downloadURL  https://sinner-s-lottery.onrender.com/static/giveaway.user.js
-// @updateURL    https://sinner-s-lottery.onrender.com/static/giveaway.user.js
-// @run-at       document-end
-// ==/UserScript==
-
-(function () {
-  'use strict';
-
-  window.__FRIES_GIVEAWAY_EMBEDDED__ = true;
-
-  const DEFAULT_BASE_URL = 'https://sinner-s-lottery.onrender.com';
-  const K_BASE_URL = 'giveaway_base_url';
-  const K_API_KEY = 'giveaway_api_key';
-  const K_SESSION = 'giveaway_session';
-  const K_OVERLAY_OPEN = 'giveaway_overlay_open';
-  const K_SHIELD_POS = 'giveaway_shield_pos';
-  const K_OVERLAY_POS = 'giveaway_overlay_pos';
-  const K_ACTIVE_TAB = 'giveaway_active_tab';
-  const K_REFRESH = 'giveaway_refresh_seconds';
-  const K_WHEEL_LAYOUTS = 'giveaway_wheel_layouts';
-  const K_WHEEL_SPINS = 'giveaway_wheel_spins';
-
-  const APP_KEY = '__torn_giveaway_overlay_running__';
-  let watchStarted = false;
-  let ensureTimer = null;
-  let refreshTimer = null;
-  let wheelAnimFrame = null;
-  let wheelState = {
-    rotation: 0,
-    spinning: false,
-    lastSpinKey: '',
-  };
-
-  if (window[APP_KEY]) return;
-  window[APP_KEY] = true;
-
-
-  function getBaseUrl() {
-    return String(getVal(K_BASE_URL, DEFAULT_BASE_URL) || DEFAULT_BASE_URL).replace(/\/$/, '');
-  }
-
-  function setBaseUrl(url) {
-    const clean = String(url || '').trim().replace(/\/$/, '');
-    if (!clean) return false;
-    setVal(K_BASE_URL, clean);
-    return true;
-  }
-
-  let state = {
-    user: null,
-    current: null,
-    history: [],
-    entrantSearch: '',
-    entrantSort: 'az',
-    loading: false,
-    message: '',
-    error: '',
-  };
-
-  function getVal(key, fallback) {
-    try { return GM_getValue(key, fallback); } catch (_) { return fallback; }
-  }
-  function setVal(key, value) {
-    try { GM_setValue(key, value); } catch (_) {}
-  }
-  function esc(s) {
-    return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  }
-  function fmtTs(ts) {
-    if (!ts) return '-';
-    const d = new Date(Number(ts) * 1000);
-    return d.toLocaleString();
-  }
-  function countdownText(ts) {
-    if (!ts) return '-';
-    let diff = Number(ts) * 1000 - Date.now();
-    if (diff <= 0) return 'Ended';
-    const s = Math.floor(diff / 1000);
-    const d = Math.floor(s / 86400);
-    const h = Math.floor((s % 86400) / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = s % 60;
-    return `${d}d ${h}h ${m}m ${sec}s`;
-  }
-
-
-  function safeJsonParse(raw, fallback) {
-    try {
-      const value = JSON.parse(raw);
-      return value && typeof value === 'object' ? value : fallback;
-    } catch (_) {
-      return fallback;
-    }
-  }
-
-  function getStoredObject(key) {
-    const raw = getVal(key, '');
-    if (!raw) return {};
-    if (typeof raw === 'object' && raw) return raw;
-    return safeJsonParse(String(raw), {});
-  }
-
-  function setStoredObject(key, value) {
-    setVal(key, JSON.stringify(value || {}));
-  }
-
-  function getGiveawayId() {
-    const g = state.current?.giveaway || {};
-    return String(g.id || g.giveaway_id || g.draw_id || 'default');
-  }
-
-  function normalizeEntrants() {
-    const raw = Array.isArray(state.current?.entrants) ? state.current.entrants : [];
-    const slices = [];
-    raw.forEach((entry, idx) => {
-      const count = Math.max(1, Number(entry?.entries || 1));
-      const userId = Number(entry?.user_id || 0) || 0;
-      const userName = String(entry?.user_name || `Entrant ${idx + 1}`);
-      for (let i = 0; i < count; i += 1) {
-        slices.push({
-          user_id: userId,
-          user_name: userName,
-          entry_index: i + 1,
-          slice_key: `${userId || 'u'}:${userName}:${i + 1}`,
-        });
-      }
-    });
-    return slices;
-  }
-
-  function entrantSignature(slices) {
-    return slices.map(s => `${s.user_id}:${s.user_name}:${s.entry_index}`).sort().join('|');
-  }
-
-  function shuffleArray(items) {
-    const arr = items.slice();
-    for (let i = arr.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
-
-  function getWheelSlices() {
-    const slices = normalizeEntrants();
-    const giveawayId = getGiveawayId();
-    const signature = entrantSignature(slices);
-    const store = getStoredObject(K_WHEEL_LAYOUTS);
-    const saved = store[giveawayId];
-    if (saved && saved.signature === signature && Array.isArray(saved.order) && saved.order.length === slices.length) {
-      const byKey = new Map(slices.map(s => [s.slice_key, s]));
-      const restored = saved.order.map(key => byKey.get(key)).filter(Boolean);
-      if (restored.length === slices.length) return restored;
-    }
-    const shuffled = shuffleArray(slices);
-    store[giveawayId] = {
-      signature,
-      order: shuffled.map(s => s.slice_key),
-      created_at: Date.now(),
-    };
-    setStoredObject(K_WHEEL_LAYOUTS, store);
-    return shuffled;
-  }
-
-  function getWheelDisplayName(slice) {
-    if (!slice) return '-';
-    return slice.entry_index > 1 ? `${slice.user_name} (${slice.entry_index})` : slice.user_name;
-  }
-
-  function getWinnerSliceIndex(slices) {
-    const winnerId = Number(state.current?.giveaway?.winner_user_id || 0);
-    if (!winnerId) return -1;
-    return slices.findIndex(s => Number(s.user_id || 0) === winnerId);
-  }
-
-  function getWheelCanvas() {
-    return document.getElementById('gw-wheel-canvas');
-  }
-
-  function resizeWheelCanvas(canvas) {
-    if (!canvas) return;
-    const parent = canvas.parentElement;
-    const width = Math.max(260, Math.min(380, Math.floor((parent?.clientWidth || 320) - 8)));
-    canvas.width = width;
-    canvas.height = width;
-  }
-
-  function drawWheel(rotationOverride) {
-    const canvas = getWheelCanvas();
-    if (!canvas) return;
-    resizeWheelCanvas(canvas);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const slices = getWheelSlices();
-    const size = canvas.width;
-    const cx = size / 2;
-    const cy = size / 2;
-    const outerRadius = size * 0.46;
-    const innerRadius = size * 0.16;
-    const rotation = typeof rotationOverride === 'number' ? rotationOverride : wheelState.rotation || 0;
-
-    ctx.clearRect(0, 0, size, size);
-
-    if (!slices.length) {
-      ctx.fillStyle = '#141414';
-      ctx.beginPath();
-      ctx.arc(cx, cy, outerRadius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#f4dddd';
-      ctx.font = `700 ${Math.max(18, Math.floor(size * 0.05))}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('No entrants yet', cx, cy);
-      return;
-    }
-
-    const anglePer = (Math.PI * 2) / slices.length;
-    const colors = ['#8f1f1f', '#b53333', '#6c1515', '#c24a4a', '#7b2323', '#a82d2d'];
-
-    slices.forEach((slice, index) => {
-      const start = rotation + (index * anglePer) - (Math.PI / 2);
-      const end = start + anglePer;
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, outerRadius, start, end);
-      ctx.closePath();
-      ctx.fillStyle = colors[index % colors.length];
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = '#1a0909';
-      ctx.stroke();
-
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(start + anglePer / 2);
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#fff5f5';
-      ctx.font = `700 ${Math.max(11, Math.floor(size * 0.032))}px Arial`;
-      const label = getWheelDisplayName(slice).slice(0, 20);
-      ctx.fillText(label, outerRadius - 12, 0);
-      ctx.restore();
-    });
-
-    ctx.beginPath();
-    ctx.arc(cx, cy, innerRadius, 0, Math.PI * 2);
-    ctx.fillStyle = '#190909';
-    ctx.fill();
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = '#e3b9b9';
-    ctx.stroke();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `900 ${Math.max(16, Math.floor(size * 0.06))}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('WHEEL', cx, cy);
-  }
-
-  function easeOutCubic(t) {
-    return 1 - Math.pow(1 - t, 3);
-  }
-
-  function markSpinDone(key) {
-    const store = getStoredObject(K_WHEEL_SPINS);
-    store[key] = Date.now();
-    setStoredObject(K_WHEEL_SPINS, store);
-  }
-
-  function hasSpinBeenDone(key) {
-    const store = getStoredObject(K_WHEEL_SPINS);
-    return !!store[key];
-  }
-
-  function spinWheelToIndex(index, spinKey, opts = {}) {
-    const slices = getWheelSlices();
-    if (!slices.length || index < 0 || index >= slices.length) return;
-    if (wheelAnimFrame) cancelAnimationFrame(wheelAnimFrame);
-
-    const anglePer = (Math.PI * 2) / slices.length;
-    const targetCenter = (index * anglePer) + (anglePer / 2);
-    const baseTarget = (Math.PI * 2) - targetCenter;
-    const current = wheelState.rotation || 0;
-    const normalizedCurrent = ((current % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
-    let delta = baseTarget - normalizedCurrent;
-    while (delta <= 0) delta += Math.PI * 2;
-    const extraTurns = opts.extraTurns || 6;
-    const target = current + delta + (Math.PI * 2 * extraTurns);
-    const duration = opts.duration || 5200;
-    const start = performance.now();
-
-    wheelState.spinning = true;
-
-    function frame(now) {
-      const progress = Math.min(1, (now - start) / duration);
-      const eased = easeOutCubic(progress);
-      wheelState.rotation = current + ((target - current) * eased);
-      drawWheel(wheelState.rotation);
-      if (progress < 1) {
-        wheelAnimFrame = requestAnimationFrame(frame);
-      } else {
-        wheelState.rotation = target % (Math.PI * 2);
-        wheelState.spinning = false;
-        wheelState.lastSpinKey = spinKey || '';
-        drawWheel(wheelState.rotation);
-        if (spinKey) markSpinDone(spinKey);
-      }
-    }
-
-    wheelAnimFrame = requestAnimationFrame(frame);
-  }
-
-  function maybeSpinWinningWheel() {
-    const g = state.current?.giveaway || {};
-    const slices = getWheelSlices();
-    if (!slices.length) return;
-    const winnerIndex = getWinnerSliceIndex(slices);
-    if (winnerIndex < 0) return;
-    const spinKey = `${getGiveawayId()}:${g.winner_user_id || 0}:${g.drawn_ts || 0}`;
-    if (wheelState.spinning || hasSpinBeenDone(spinKey) || wheelState.lastSpinKey === spinKey) return;
-    spinWheelToIndex(winnerIndex, spinKey, { extraTurns: 7, duration: 5600 });
-  }
-
-  function spinPreviewWheel() {
-    const slices = getWheelSlices();
-    if (!slices.length || wheelState.spinning) return;
-    const randomIndex = Math.floor(Math.random() * slices.length);
-    spinWheelToIndex(randomIndex, '', { extraTurns: 4, duration: 2600 });
-  }
-
-  function wheelTab() {
-    const slices = getWheelSlices();
-    const g = state.current?.giveaway || {};
-    const winnerName = g.winner_name || 'Not drawn yet';
-    const winnerId = g.winner_user_id || 0;
-    const canPreview = !!slices.length;
-    return `
-      <div class="gw-card gw-hero">
-        <div class="gw-label">Wheel Draw</div>
-        <div class="gw-spacer"></div>
-        <div class="gw-wheel-wrap">
-          <div class="gw-wheel-pointer"></div>
-          <canvas id="gw-wheel-canvas" class="gw-wheel-canvas" width="320" height="320"></canvas>
-        </div>
-        <div class="gw-spacer"></div>
-        <div class="gw-grid">
-          <div class="gw-stat">
-            <div class="gw-label">Slices</div>
-            <div class="gw-value">${slices.length}</div>
-          </div>
-          <div class="gw-stat">
-            <div class="gw-label">Status</div>
-            <div class="gw-value">${esc(g.status || '-')}</div>
-          </div>
-        </div>
-        <div class="gw-spacer"></div>
-        <div class="gw-actions">
-          <div class="gw-btn ${canPreview ? '' : 'warn'}" id="gw-wheel-preview-btn">${canPreview ? 'Spin Preview' : 'Waiting For Entrants'}</div>
-          <div class="gw-btn" id="gw-wheel-refresh-btn">Refresh Wheel</div>
-        </div>
-      </div>
-      <div class="gw-card gw-highlight">
-        <div class="gw-label">Winner</div>
-        <div class="gw-winner-big">${esc(winnerName)}</div>
-        <div class="gw-mini">${winnerId ? `Torn ID: ${winnerId}` : 'The wheel will land on the backend winner when the draw is done.'}</div>
-      </div>
-      <div class="gw-card">
-        <div class="gw-label">How It Works</div>
-        <div class="gw-spacer"></div>
-        <div class="gw-mini">Entrants are shuffled into random wheel positions for this draw. When the giveaway is drawn, the wheel animates to the backend winner instead of choosing one on its own.</div>
-      </div>
-      ${!slices.length ? `<div class="gw-card"><div class="gw-value">No entrant list is available yet. If your backend does not return entrants for this endpoint, the wheel cannot build slices until that data is included.</div></div>` : ''}
-    `;
-  }
-
-  function initWheelTab() {
-    if (getVal(K_ACTIVE_TAB, 'overview') !== 'wheel') return;
-    const canvas = getWheelCanvas();
-    if (!canvas) return;
-    drawWheel();
-    window.requestAnimationFrame(() => {
-      drawWheel();
-      maybeSpinWinningWheel();
-    });
-  }
-
-  function req(path, method = 'GET', body = null) {
-    return new Promise((resolve, reject) => {
-      const headers = { 'Content-Type': 'application/json' };
-      const token = getVal(K_SESSION, '');
-      if (token) headers['X-Session-Token'] = token;
-      GM_xmlhttpRequest({
-        method,
-        url: `${getBaseUrl()}${path}`,
-        headers,
-        data: body ? JSON.stringify(body) : null,
-        onload: (r) => {
-          try {
-            const data = JSON.parse(r.responseText || '{}');
-            if (r.status >= 200 && r.status < 300) resolve(data);
-            else reject(data);
-          } catch (e) {
-            reject({ error: `Bad response: ${e}` });
-          }
-        },
-        onerror: () => reject({ error: 'Network error' }),
-      });
-    });
-  }
-
-  function showMsg(msg, isErr = false) {
-    state.message = isErr ? '' : msg;
-    state.error = isErr ? msg : '';
-    render();
-    if (msg) setTimeout(() => {
-      if (state.message === msg) state.message = '';
-      if (state.error === msg) state.error = '';
-      render();
-    }, 3000);
-  }
-
-  async function login() {
-    const apiKey = prompt('Enter your Torn API key');
-    if (!apiKey) return;
-    setVal(K_API_KEY, apiKey.trim());
-    try {
-      const data = await req('/api/login', 'POST', { api_key: apiKey.trim() });
-      if (!data.ok) throw data;
-      setVal(K_SESSION, data.token || '');
-      state.user = data.user || null;
-      showMsg(`Logged in as ${state.user?.user_name || 'user'}`);
-      await refreshAll();
-    } catch (e) {
-      showMsg(e.error || 'Login failed', true);
-    }
-  }
-
-
-  async function tryAutoLogin() {
-    const token = getVal(K_SESSION, '');
-    if (token) return;
-    const apiKey = String(getVal(K_API_KEY, '') || '').trim();
-    if (!apiKey) return;
-    try {
-      const data = await req('/api/login', 'POST', { api_key: apiKey });
-      if (!data.ok) throw data;
-      setVal(K_SESSION, data.token || '');
-      state.user = data.user || null;
-    } catch (_) {}
-  }
-
-  async function logout() {
-    try { await req('/api/logout', 'POST', {}); } catch (_) {}
-    setVal(K_SESSION, '');
-    state.user = null;
-    showMsg('Logged out');
-    await refreshAll();
-  }
-
-  async function refreshCurrent() {
-    try {
-      const data = await req('/api/giveaway/current');
-      state.current = data;
-    } catch (e) {
-      showMsg(e.error || 'Failed loading giveaway', true);
-    }
-  }
-
-  async function refreshHistory() {
-    try {
-      const data = await req('/api/giveaway/history');
-      state.history = data.history || [];
-    } catch (_) {}
-  }
-
-  async function refreshMe() {
-    try {
-      const data = await req('/api/me');
-      state.user = data.user || null;
-    } catch (_) {
-      state.user = null;
-    }
-  }
-
-  async function refreshAll() {
-    if (state.loading) return;
-    state.loading = true;
-    render();
-    await Promise.all([refreshMe(), refreshCurrent(), refreshHistory()]);
-    state.loading = false;
-    render();
-  }
-
-  async function refreshForTab(tab) {
-    if (state.loading) return;
-    state.loading = true;
-    render();
-    try {
-      if (tab === 'overview') {
-        await Promise.all([refreshCurrent(), refreshMe()]);
-      } else if (tab === 'wheel') {
-        await refreshCurrent();
-      } else if (tab === 'entrants') {
-        await Promise.all([refreshCurrent(), refreshMe()]);
-      } else if (tab === 'winners') {
-        await Promise.all([refreshCurrent(), refreshHistory()]);
-      } else if (tab === 'admin') {
-        await Promise.all([refreshCurrent(), refreshMe()]);
-      } else if (tab === 'settings') {
-        await refreshMe();
-      } else {
-        await Promise.all([refreshMe(), refreshCurrent(), refreshHistory()]);
-      }
-    } finally {
-      state.loading = false;
-      render();
-    }
-  }
-
-  async function enterGiveaway() {
-    try {
-      const data = await req('/api/giveaway/enter', 'POST', {});
-      if (!data.ok) throw data;
-      state.current = data;
-      showMsg(data.message || 'Entry added');
-    } catch (e) {
-      showMsg(e.error || 'Could not enter giveaway', true);
-    }
-  }
-
-  async function adminSave() {
-    if (!state.user || state.user.role !== 'admin') return showMsg('Admin access required', true);
-    const current = state.current?.giveaway || {};
-
-    const title = String(document.getElementById('gw-admin-title')?.value || '').trim();
-    const entry_requirement = String(document.getElementById('gw-admin-entry')?.value || '').trim();
-    const reward = String(document.getElementById('gw-admin-reward')?.value || '').trim();
-    const rules = String(current.rules || '').trim();
-    const startRaw = String(document.getElementById('gw-admin-start')?.value || '').trim();
-    const endRaw = String(document.getElementById('gw-admin-end')?.value || '').trim();
-    const maxEntries = Number(document.getElementById('gw-admin-max')?.value || current.max_entries_per_user || 1) || 1;
-    const status = String(document.getElementById('gw-admin-status')?.value || current.status || 'draft').trim();
-
-    if (!title) return showMsg('Enter a giveaway title', true);
-    if (!reward) return showMsg('Enter a reward', true);
-
-    function parseLocal(value) {
-      if (!value.trim()) return 0;
-      const dt = new Date(value);
-      return Number.isNaN(dt.getTime()) ? 0 : Math.floor(dt.getTime() / 1000);
-    }
-
-    try {
-      const data = await req('/api/giveaway/admin/save', 'POST', {
-        id: current.id || 0,
-        title,
-        entry_requirement: entry_requirement || '1 free entry',
-        reward,
-        rules,
-        start_ts: parseLocal(startRaw),
-        end_ts: parseLocal(endRaw),
-        max_entries_per_user: Math.max(1, maxEntries),
-        status: status || 'draft',
-      });
-      if (!data.ok) throw data;
-      showMsg('Giveaway saved');
-      await refreshAll();
-    } catch (e) {
-      showMsg(e.error || 'Save failed', true);
-    }
-  }
-
-  async function adminStatus(status) {
-    try {
-      const current = state.current?.giveaway || {};
-      const data = await req('/api/giveaway/admin/status', 'POST', { id: current.id || 0, status });
-      if (!data.ok) throw data;
-      showMsg(`Status set to ${status}`);
-      await refreshAll();
-    } catch (e) {
-      showMsg(e.error || 'Status update failed', true);
-    }
-  }
-
-  async function adminDraw() {
-    if (!confirm('Pick a winner for the current draw now?')) return;
-    try {
-      const current = state.current?.giveaway || {};
-      const data = await req('/api/giveaway/admin/draw', 'POST', { id: current.id || 0 });
-      if (!data.ok) throw data;
-      wheelState.lastSpinKey = '';
-      showMsg(`Winner picked: ${data.giveaway?.winner_name || 'Unknown'}`);
-      await refreshAll();
-    } catch (e) {
-      showMsg(e.error || 'Draw failed', true);
-    }
-  }
-
-  function css() {
-    return `
-#giveaway-shield{position:fixed;right:0;top:50vh;transform:translateY(-50%);z-index:2147483647;width:120px;height:40px;border-radius:14px 0 0 14px;background:linear-gradient(180deg,#a51515 0%, #5e0d0d 100%);box-shadow:0 4px 14px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;cursor:pointer;user-select:none;letter-spacing:.5px;writing-mode:horizontal-tb;text-orientation:mixed;white-space:nowrap}
-#giveaway-overlay{position:fixed;right:78px;top:110px;width:min(440px,92vw);max-height:78vh;overflow:auto;z-index:2147483646;background:#111;border:1px solid #571818;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.6);color:#eee;font:14px/1.35 Arial,sans-serif}
-#giveaway-overlay.hidden{display:none}
-.gw-head{position:sticky;top:0;background:linear-gradient(180deg,#2b0b0b,#120606);padding:10px 12px;border-bottom:1px solid #4e1717;display:flex;justify-content:space-between;align-items:center;z-index:2}
-.gw-title{font-size:16px;font-weight:800}
-.gw-body{padding:10px}
-.gw-tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px}
-.gw-tab,.gw-btn{background:#220b0b;color:#f2d7d7;border:1px solid #5a2020;border-radius:10px;padding:8px 9px;text-align:center;cursor:pointer}
-.gw-tab.active{background:#5a1717;color:#fff}
-.gw-btn.primary{background:#7c1717;color:#fff;border-color:#a82b2b;font-weight:800}
-.gw-btn.warn{background:#5b4110;border-color:#8d6720;color:#ffe2a2}
-.gw-card{background:#181818;border:1px solid #2e2e2e;border-radius:12px;padding:10px;margin-bottom:10px}
-.gw-hero{background:linear-gradient(180deg,#1f0c0c,#140909);border:1px solid #5f1f1f}
-.gw-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.gw-grid-entrants-tools{align-items:end}
-.gw-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.gw-label{font-size:11px;color:#bfa1a1;text-transform:uppercase;letter-spacing:.08em}
-.gw-value{font-size:14px;font-weight:700;margin-top:2px;word-break:break-word}
-.gw-list{display:flex;flex-direction:column;gap:6px}
-.gw-row{display:flex;justify-content:space-between;gap:8px;padding:8px;border-radius:10px;background:#151515;border:1px solid #2b2b2b}
-.gw-note{padding:8px 10px;border-radius:10px;margin-bottom:10px}
-.gw-note.ok{background:#112814;border:1px solid #1f6d2d;color:#bff1c7}
-.gw-note.err{background:#2b1010;border:1px solid #7f2323;color:#ffc7c7}
-.gw-mini{font-size:12px;color:#b9b9b9}
-.gw-spacer{height:6px}
-.gw-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
-.gw-hero-title{font-size:18px;font-weight:900;line-height:1.15}
-.gw-status-pill{display:inline-flex;align-items:center;justify-content:center;min-width:74px;padding:6px 10px;border-radius:999px;background:#2b1212;border:1px solid #6f2424;font-size:12px;font-weight:800;text-transform:uppercase}
-.gw-stat{background:#141414;border:1px solid #2a2a2a;border-radius:12px;padding:10px}
-.gw-stat .gw-value{font-size:16px}
-.gw-form{display:flex;flex-direction:column;gap:10px}
-.gw-field{display:flex;flex-direction:column;gap:5px}
-.gw-input,.gw-textarea,.gw-select{width:100%;box-sizing:border-box;background:#101010;border:1px solid #3a1a1a;border-radius:10px;color:#f3e6e6;padding:10px;font:14px Arial,sans-serif}
-.gw-textarea{min-height:86px;resize:vertical}
-.gw-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.gw-actions-3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.gw-subtle{color:#c8b4b4;font-size:12px}
-.gw-overview-hero{padding:12px 12px 14px}
-.gw-overview-main{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
-.gw-overview-title{font-size:20px;font-weight:900;line-height:1.1;margin-top:4px}
-.gw-overview-countdown .gw-value{font-size:22px;line-height:1.05}
-.gw-overview-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
-.gw-highlight{border-color:#5e2020;background:linear-gradient(180deg,#211010,#151010)}
-.gw-enter-main{margin-top:10px}
-.gw-winner-big{font-size:18px;font-weight:900}
-.gw-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-
-.gw-wheel-wrap{position:relative;display:flex;align-items:center;justify-content:center;padding-top:18px}
-.gw-wheel-canvas{display:block;width:min(100%,380px);height:auto;background:radial-gradient(circle at center,#241010 0%,#140909 65%,#0f0808 100%);border:1px solid #5a2020;border-radius:50%;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-.gw-wheel-pointer{position:absolute;top:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:0;border-bottom:26px solid #f6df90;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5));z-index:2}
-.gw-history-row{display:flex;justify-content:space-between;gap:10px;padding:8px;border-radius:10px;background:#151515;border:1px solid #2b2b2b}
-.gw-history-main{display:flex;flex-direction:column;gap:2px}
-.gw-history-name{font-weight:800}
-.gw-history-reward{font-weight:700;text-align:right}
-.gw-countdown-big{font-size:22px;font-weight:900;line-height:1.05}
-.gw-winner-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
-.gw-winner-badge{padding:6px 10px;border-radius:999px;background:#2b1212;border:1px solid #6f2424;font-size:12px;font-weight:800}
-.gw-info-box,.gw-tos{background:#141414;border:1px solid #2a2a2a;border-radius:12px;padding:10px}
-.gw-stat-num{font-size:16px;font-weight:800;word-break:break-word}
-.gw-stat-label{font-size:11px;color:#bfa1a1;text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
-.gw-linkbtn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
-.gw-empty{padding:8px;border-radius:10px;background:#151515;border:1px solid #2b2b2b}
-
-@media (max-width:640px){
-  #giveaway-overlay{right:4vw;left:4vw;width:auto;top:80px;max-height:82vh}
-  .gw-tabs{grid-template-columns:repeat(3,1fr)}
-  .gw-grid,.gw-grid-3,.gw-actions,.gw-actions-3,.gw-overview-stats,.gw-detail-grid{grid-template-columns:1fr}
-  #giveaway-shield{right:0;top:50vh;transform:translateY(-50%);width:104px;height:36px;border-radius:12px 0 0 12px;font-size:12px}
-}
-    `;
-  }
-
-  function ensureDom() {
-    if (!document.getElementById('giveaway-style')) {
-      GM_addStyle(css());
-      const marker = document.createElement('div');
-      marker.id = 'giveaway-style';
-      marker.style.display = 'none';
-      document.body.appendChild(marker);
-    }
-
-    let shield = document.getElementById('giveaway-shield');
-    if (!shield) {
-      shield = document.createElement('div');
-      shield.id = 'giveaway-shield';
-      shield.textContent = 'GIVEAWAY';
-      if (window.__FRIES_GIVEAWAY_EMBEDDED__) shield.style.display = 'none';
-      document.body.appendChild(shield);
-      shield.addEventListener('click', toggleOverlay);
-      makeDraggable(shield, K_SHIELD_POS);
-      applyStoredPos(shield, K_SHIELD_POS, { right: '0', top: '50vh', transform: 'translateY(-50%)' });
-    }
-
-    let overlay = document.getElementById('giveaway-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'giveaway-overlay';
-      document.body.appendChild(overlay);
-      if (!getVal(K_OVERLAY_OPEN, false)) overlay.classList.add('hidden');
-      makeDraggable(overlay, K_OVERLAY_POS, '.gw-head');
-      applyStoredPos(overlay, K_OVERLAY_POS, { right: '78px', top: '90px' });
-
-      render();
-    }
-  }
-
-  function applyStoredPos(el, key, fallback) {
-    const p = getVal(key, null);
-    const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-    const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
-
-    if (p && typeof p === 'object') {
-      const left = Number(p.left);
-      const top = Number(p.top);
-      const width = Math.max(80, el.offsetWidth || 120);
-      const height = Math.max(36, el.offsetHeight || 40);
-      const isValid = Number.isFinite(left) && Number.isFinite(top)
-        && left > -width + 16
-        && top > 0
-        && left < vw - 16
-        && top < vh - 16;
-
-      if (isValid) {
-        Object.assign(el.style, { left: `${left}px`, top: `${top}px`, right: 'auto', transform: 'none' });
-        return;
-      }
-
-      setVal(key, null);
-    }
-
-    Object.assign(el.style, fallback);
-  }
-
-  function makeDraggable(el, key, handleSel) {
-    let dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
-    const handle = handleSel ? () => el.querySelector(handleSel) : () => el;
-    el.addEventListener('mousedown', (e) => {
-      const h = handle();
-      if (h && !h.contains(e.target)) return;
-      dragging = true;
-      sx = e.clientX; sy = e.clientY;
-      const r = el.getBoundingClientRect();
-      ox = r.left; oy = r.top;
-      e.preventDefault();
-    });
-    document.addEventListener('mousemove', (e) => {
-      if (!dragging) return;
-      const left = ox + (e.clientX - sx);
-      const top = oy + (e.clientY - sy);
-      Object.assign(el.style, { left: `${left}px`, top: `${top}px`, right: 'auto', transform: 'none' });
-    });
-    document.addEventListener('mouseup', () => {
-      if (!dragging) return;
-      dragging = false;
-      const r = el.getBoundingClientRect();
-      setVal(key, { left: Math.round(r.left), top: Math.round(r.top) });
-    });
-  }
-
-  async function toggleOverlay() {
-    const overlay = document.getElementById('giveaway-overlay');
-    if (!overlay) return;
-    const willOpen = overlay.classList.contains('hidden');
-    overlay.classList.toggle('hidden');
-    setVal(K_OVERLAY_OPEN, !overlay.classList.contains('hidden'));
-    if (willOpen) {
-      await refreshForTab(getVal(K_ACTIVE_TAB, 'overview'));
-    }
-  }
-
-  function tabBtn(key, label) {
-    const active = getVal(K_ACTIVE_TAB, 'overview') === key ? 'active' : '';
-    return `<div class="gw-tab ${active}" data-tab="${key}">${label}</div>`;
-  }
-
-  function overviewTab() {
-    const g = state.current?.giveaway;
-    const c = state.current?.counts || { total_entries: 0, entrant_count: 0, my_entries: 0 };
-    const canEnter = !!g && g.status === 'open';
-    const loginLabel = state.user ? `Logged in as ${esc(state.user.user_name)}` : 'Login needed to enter';
-    if (!g) return `<div class="gw-card"><div class="gw-value">No giveaway created yet</div></div>`;
-    return `
-      <div class="gw-card gw-hero gw-overview-hero">
-        <div class="gw-overview-main">
-          <div>
-            <div class="gw-label">Current Giveaway</div>
-            <div class="gw-overview-title">${esc(g.title || '-')}</div>
-            <div class="gw-mini">${esc(loginLabel)}</div>
-          </div>
-          <div class="gw-status-pill">${esc(g.status || '-')}</div>
-        </div>
-        <div class="gw-grid" style="margin-bottom:8px;">
-          <div class="gw-stat">
-            <div class="gw-label">Reward</div>
-            <div class="gw-value">${esc(g.reward || '-')}</div>
-          </div>
-          <div class="gw-stat gw-overview-countdown">
-            <div class="gw-label">Countdown</div>
-            <div class="gw-value" id="gw-live-countdown">${esc(countdownText(g.end_ts))}</div>
-          </div>
-        </div>
-        <div class="gw-overview-stats">
-          <div class="gw-stat"><div class="gw-label">Entrants</div><div class="gw-value">${c.entrant_count}</div></div>
-          <div class="gw-stat"><div class="gw-label">Total Entries</div><div class="gw-value">${c.total_entries}</div></div>
-          <div class="gw-stat"><div class="gw-label">My Entries</div><div class="gw-value">${c.my_entries}</div></div>
-          <div class="gw-stat"><div class="gw-label">Max Per User</div><div class="gw-value">${g.max_entries_per_user || 1}</div></div>
-        </div>
-        <div class="gw-btn primary gw-enter-main" id="gw-overview-enter-btn">${canEnter ? 'Enter Giveaway' : 'Giveaway Not Open'}</div>
-      </div>
-      <div class="gw-card gw-highlight">
-        <div class="gw-label">Winner</div>
-        <div class="gw-winner-big">${esc(g.winner_name || 'Not drawn yet')}</div>
-      </div>
-      <div class="gw-card">
-        <div class="gw-label">Giveaway Details</div>
-        <div class="gw-spacer"></div>
-        <div class="gw-detail-grid">
-          <div><div class="gw-label">Entry Requirement</div><div class="gw-value">${esc(g.entry_requirement || '-')}</div></div>
-          <div><div class="gw-label">Start</div><div class="gw-value">${esc(fmtTs(g.start_ts))}</div></div>
-          <div><div class="gw-label">End</div><div class="gw-value">${esc(fmtTs(g.end_ts))}</div></div>
-          <div><div class="gw-label">Status</div><div class="gw-value">${esc(g.status || '-')}</div></div>
-        </div>
-      </div>
-    `;
-  }
-
-
-  function entrantsTab() {
-    if (!state.user || state.user.role !== 'admin') {
-      return `<div class="gw-card"><div class="gw-value">Admin access only</div></div>`;
-    }
-    const rawEntrants = Array.isArray(state.current?.entrants) ? [...state.current.entrants] : [];
-    const search = String(state.entrantSearch || '').trim().toLowerCase();
-    const sort = state.entrantSort || 'az';
-    const entrants = rawEntrants
-      .filter(e => !search || String(e.user_name || '').toLowerCase().includes(search) || String(e.user_id || '').includes(search))
-      .sort((a, b) => {
-        if (sort === 'entries_desc') return Number(b.entries || 0) - Number(a.entries || 0) || String(a.user_name || '').localeCompare(String(b.user_name || ''));
-        if (sort === 'entries_asc') return Number(a.entries || 0) - Number(b.entries || 0) || String(a.user_name || '').localeCompare(String(b.user_name || ''));
-        return String(a.user_name || '').localeCompare(String(b.user_name || ''));
-      });
-
-    return `
-      <div class="gw-card">
-        <div class="gw-grid gw-grid-entrants-tools">
-          <div class="gw-field">
-            <label class="gw-label" for="gw-entrant-search">Search</label>
-            <input class="gw-input" id="gw-entrant-search" type="text" value="${esc(state.entrantSearch || '')}" placeholder="Name or ID">
-          </div>
-          <div class="gw-field">
-            <label class="gw-label" for="gw-entrant-sort">Sort</label>
-            <select class="gw-select" id="gw-entrant-sort">
-              <option value="az" ${sort === 'az' ? 'selected' : ''}>A-Z</option>
-              <option value="entries_desc" ${sort === 'entries_desc' ? 'selected' : ''}>Most Entries</option>
-              <option value="entries_asc" ${sort === 'entries_asc' ? 'selected' : ''}>Least Entries</option>
-            </select>
-          </div>
-        </div>
-        <div class="gw-spacer"></div>
-        <div class="gw-grid">
-          <div><div class="gw-label">Visible Entrants</div><div class="gw-value">${entrants.length}</div></div>
-          <div><div class="gw-label">Total Entrants</div><div class="gw-value">${rawEntrants.length}</div></div>
-        </div>
-      </div>
-      <div class="gw-card">
-        <div class="gw-label">Entrants</div>
-        <div class="gw-list">
-          ${entrants.length ? entrants.map(e => `<div class="gw-row"><div><b>${esc(e.user_name)}</b> <span class="gw-mini">[${e.user_id}]</span></div><div>${Number(e.entries || 0)} ${Number(e.entries || 0) === 1 ? 'entry' : 'entries'}</div></div>`).join('') : '<div class="gw-row"><div>No matching entrants</div></div>'}
-        </div>
-      </div>
-    `;
-  }
-
-  function adminTab() {
-    if (!state.user || state.user.role !== 'admin') {
-      return `<div class="gw-card"><div class="gw-value">Admin access only</div></div>`;
-    }
-    const g = state.current?.giveaway || {};
-    const c = state.current?.counts || { total_entries: 0, entrant_count: 0 };
-    const winnerName = g.winner_name || 'Not picked yet';
-    const winnerId = g.winner_user_id || 0;
-    const drawnAt = g.drawn_ts ? fmtTs(g.drawn_ts) : '-';
-
-    return `
-      <div class="gw-card">
-        <div class="gw-label">Giveaway Setup</div>
-        <div class="gw-spacer"></div>
-        <div class="gw-grid">
-          <div>
-            <div class="gw-label">Title</div>
-            <input class="gw-input" id="gw-admin-title" value="${esc(g.title || '')}" placeholder="Giveaway title" />
-          </div>
-          <div>
-            <div class="gw-label">Entry Requirement</div>
-            <input class="gw-input" id="gw-admin-entry" value="${esc(g.entry_requirement || '')}" placeholder="Entry requirement" />
-          </div>
-          <div>
-            <div class="gw-label">Reward</div>
-            <input class="gw-input" id="gw-admin-reward" value="${esc(g.reward || '')}" placeholder="Reward" />
-          </div>
-          <div>
-            <div class="gw-label">Max Entries</div>
-            <input class="gw-input" id="gw-admin-max" type="number" min="1" value="${Number(g.max_entries_per_user || 1)}" />
-          </div>
-          <div>
-            <div class="gw-label">Start</div>
-            <input class="gw-input" id="gw-admin-start" value="${g.start_ts ? new Date(g.start_ts * 1000).toISOString().slice(0,16).replace('T',' ') : ''}" placeholder="YYYY-MM-DD HH:MM" />
-          </div>
-          <div>
-            <div class="gw-label">End</div>
-            <input class="gw-input" id="gw-admin-end" value="${g.end_ts ? new Date(g.end_ts * 1000).toISOString().slice(0,16).replace('T',' ') : ''}" placeholder="YYYY-MM-DD HH:MM" />
-          </div>
-        </div>
-        <div class="gw-spacer"></div>
-        <div class="gw-grid">
-          <div class="gw-stat">
-            <div class="gw-stat-num">${esc(g.status || '-')}</div>
-            <div class="gw-stat-label">Status</div>
-          </div>
-          <div class="gw-stat">
-            <div class="gw-stat-num">${c.entrant_count}</div>
-            <div class="gw-stat-label">Entrants</div>
-          </div>
-          <div class="gw-stat">
-            <div class="gw-stat-num">${c.total_entries}</div>
-            <div class="gw-stat-label">Total Entries</div>
-          </div>
-          <div class="gw-stat">
-            <div class="gw-stat-num">${esc(drawnAt)}</div>
-            <div class="gw-stat-label">Draw Time</div>
-          </div>
-        </div>
-        <div class="gw-spacer"></div>
-        <div class="gw-grid">
-          <div class="gw-btn" id="gw-admin-save">Save</div>
-          <div class="gw-btn" id="gw-admin-open">Open</div>
-          <div class="gw-btn" id="gw-admin-close">Close</div>
-          <div class="gw-btn" id="gw-admin-pick">Pick Winner</div>
-        </div>
-      </div>
-
-      <div class="gw-card">
-        <div class="gw-label">Winner</div>
-        <div class="gw-spacer"></div>
-        <div class="gw-winner-top">
-          <div>
-            <div class="gw-value">${esc(winnerName)}</div>
-            <div class="gw-mini">${winnerId ? `Torn ID: ${winnerId}` : 'No winner picked yet'}</div>
-          </div>
-          <div class="gw-winner-badge">${g.status === 'drawn' ? 'Picked' : 'Waiting'}</div>
-        </div>
-        <div class="gw-spacer"></div>
-        ${winnerId ? `<a class="gw-btn gw-linkbtn" href="https://www.torn.com/profiles.php?XID=${winnerId}" target="_blank" rel="noopener noreferrer">Open Winner Profile</a>` : ''}
-      </div>
-    `;
-  }
-
-  function winnersTab() {
-    const g = state.current?.giveaway || {};
-    const winnerName = g.winner_name || 'Not drawn yet';
-    const winnerId = g.winner_user_id || 0;
-    const drawnAt = g.drawn_ts ? fmtTs(g.drawn_ts) : '-';
-    return `
-      <div class="gw-card gw-hero">
-        <div class="gw-winner-top">
-          <div>
-            <div class="gw-label">Current Winner</div>
-            <div class="gw-countdown-big">${esc(winnerName)}</div>
-            <div class="gw-mini">${winnerId ? `Torn ID: ${winnerId}` : 'No winner selected yet'}</div>
-          </div>
-          <div class="gw-winner-badge">${g.status === 'drawn' ? 'Drawn' : 'Pending'}</div>
-        </div>
-        <div class="gw-spacer"></div>
-        <div class="gw-grid">
-          <div class="gw-stat">
-            <div class="gw-stat-num">${esc(g.reward || '-')}</div>
-            <div class="gw-stat-label">Reward</div>
-          </div>
-          <div class="gw-stat">
-            <div class="gw-stat-num">${esc(drawnAt)}</div>
-            <div class="gw-stat-label">Draw Time</div>
-          </div>
-        </div>
-      </div>
-      <div class="gw-card">
-        <div class="gw-label">Winner History</div>
-        <div class="gw-spacer"></div>
-        <div class="gw-list">
-          ${state.history.length ? state.history.map(h => `
-            <div class="gw-history-row">
-              <div class="gw-history-main">
-                <div class="gw-history-name">${esc(h.user_name || 'Unknown')}</div>
-                <div class="gw-mini">${esc(h.title || 'Giveaway')}</div>
-                <div class="gw-mini">${esc(h.drawn_ts ? fmtTs(h.drawn_ts) : '-')}</div>
-              </div>
-              <div class="gw-history-reward">${esc(h.reward || '-')}</div>
-            </div>
-          `).join('') : '<div class="gw-empty">No winners yet</div>'}
-        </div>
-      </div>
-    `;
-  }
-
-  function settingsTab() {
-    const apiKeySaved = String(getVal(K_API_KEY, '') || '').trim();
-    return `
-      <div class="gw-card">
-        <div class="gw-label">Account</div>
-        <div class="gw-spacer"></div>
-        <div class="gw-grid">
-          <div class="gw-info-box">
-            <div class="gw-label">Logged In As</div>
-            <div class="gw-value">${state.user ? esc(state.user.user_name || '-') : 'Not logged in'}</div>
-          </div>
-          <div class="gw-info-box">
-            <div class="gw-label">Role</div>
-            <div class="gw-value">${state.user ? esc(state.user.role || 'user') : '-'}</div>
-          </div>
-        </div>
-        <div class="gw-spacer"></div>
-        <div class="gw-grid">
-          <div class="gw-btn" id="gw-login-btn">${state.user ? 'Re-Login' : 'Login'}</div>
-          <div class="gw-btn" id="gw-logout-btn">Logout</div>
-        </div>
-      </div>
-
-      <div class="gw-card">
-        <div class="gw-label">Storage</div>
-        <div class="gw-spacer"></div>
-        <div class="gw-grid">
-          <div class="gw-info-box">
-            <div class="gw-label">API Key Saved</div>
-            <div class="gw-value">${apiKeySaved ? 'Yes' : 'No'}</div>
-          </div>
-          <div class="gw-info-box">
-            <div class="gw-label">Session Saved</div>
-            <div class="gw-value">${getVal(K_SESSION, '') ? 'Yes' : 'No'}</div>
-          </div>
-        </div>
-        <div class="gw-spacer"></div>
-        <div class="gw-grid">
-          <div class="gw-btn" id="gw-clear-session-btn">Clear Session</div>
-          <div class="gw-btn" id="gw-clear-apikey-btn">Clear API Key</div>
-        </div>
-      </div>
-
-      <div class="gw-card">
-        <div class="gw-label">ToS</div>
-        <div class="gw-spacer"></div>
-        <div class="gw-tos">
-          This overlay should be used in line with Torn's rules and API terms. Use your own API key only. Do not share your API key with other players. The script stores your API key and session locally in your userscript storage on your device so it can log you in and keep the overlay working. This script should only use your key for giveaway login and related giveaway data requests.
-        </div>
-      </div>
-
-      <div class="gw-card">
-        <div class="gw-label">API Key Storage & Use</div>
-        <div class="gw-spacer"></div>
-        <div class="gw-tos">
-          Your API key is saved locally in userscript storage on your device, not shown openly in the overlay, and reused for login when needed. Your saved session token is also stored locally to reduce repeated logins. Clear either one anytime using the storage buttons above.
-        </div>
-      </div>
-    `;
-  }
-
-  function toggleOverlay() {
-    const overlay = document.getElementById('giveaway-overlay');
-    if (!overlay) return;
-    overlay.classList.toggle('hidden');
-    setVal(K_OVERLAY_OPEN, !overlay.classList.contains('hidden'));
-  }
-
-  window.__FRIES_GIVEAWAY_BRIDGE__ = {
-    open: async function () {
-      ensureDom();
-      const overlay = document.getElementById('giveaway-overlay');
-      if (!overlay) return;
-      overlay.classList.remove('hidden');
-      setVal(K_OVERLAY_OPEN, true);
-      await refreshForTab(getVal(K_ACTIVE_TAB, 'overview'));
-    },
-    close: function () {
-      const overlay = document.getElementById('giveaway-overlay');
-      if (!overlay) return;
-      overlay.classList.add('hidden');
-      setVal(K_OVERLAY_OPEN, false);
-    },
-    toggle: async function () {
-      const overlay = document.getElementById('giveaway-overlay');
-      if (!overlay || overlay.classList.contains('hidden')) {
-        await this.open();
-      } else {
-        this.close();
-      }
-    }
-  };
-
-  function bindEvents() {
-    document.querySelectorAll('.gw-tab').forEach(el => {
-      el.onclick = async () => {
-        const tab = el.dataset.tab || 'overview';
-        setVal(K_ACTIVE_TAB, tab);
-        render();
-        await refreshForTab(tab);
-      };
-    });
-    document.getElementById('gw-enter-btn')?.addEventListener('click', () => state.user ? enterGiveaway() : login());
-    document.getElementById('gw-overview-enter-btn')?.addEventListener('click', () => {
-      const g = state.current?.giveaway;
-      if (!g || g.status !== 'open') return showMsg('Giveaway is not open', true);
-      return state.user ? enterGiveaway() : login();
-    });
-    document.getElementById('gw-login-btn')?.addEventListener('click', login);
-    document.getElementById('gw-logout-btn')?.addEventListener('click', logout);
-    document.getElementById('gw-clear-session-btn')?.addEventListener('click', () => {
-      setVal(K_SESSION, '');
-      state.user = null;
-      showMsg('Saved session cleared');
-      refreshAll();
-    });
-    document.getElementById('gw-clear-apikey-btn')?.addEventListener('click', () => {
-      setVal(K_API_KEY, '');
-      showMsg('Saved API key cleared');
-      render();
-    });
-    document.getElementById('gw-entrant-search')?.addEventListener('input', (e) => {
-      state.entrantSearch = e.target.value || '';
-      render();
-    });
-    document.getElementById('gw-entrant-sort')?.addEventListener('change', (e) => {
-      state.entrantSort = e.target.value || 'az';
-      render();
-    });
-    document.getElementById('gw-wheel-preview-btn')?.addEventListener('click', () => {
-      if (!getWheelSlices().length) return showMsg('No entrants to place on the wheel yet', true);
-      spinPreviewWheel();
-    });
-    document.getElementById('gw-wheel-refresh-btn')?.addEventListener('click', () => {
-      const giveawayId = getGiveawayId();
-      const store = getStoredObject(K_WHEEL_LAYOUTS);
-      delete store[giveawayId];
-      setStoredObject(K_WHEEL_LAYOUTS, store);
-      wheelState.rotation = 0;
-      wheelState.lastSpinKey = '';
-      drawWheel();
-      render();
-    });
-    document.getElementById('gw-admin-save')?.addEventListener('click', async () => {
-      if (!state.user || state.user.role !== 'admin') return showMsg('Admin access required', true);
-      const current = state.current?.giveaway || {};
-      const title = document.getElementById('gw-admin-title')?.value || '';
-      const entry_requirement = document.getElementById('gw-admin-entry')?.value || '';
-      const reward = document.getElementById('gw-admin-reward')?.value || '';
-      const maxEntries = document.getElementById('gw-admin-max')?.value || '1';
-      const startRaw = document.getElementById('gw-admin-start')?.value || '';
-      const endRaw = document.getElementById('gw-admin-end')?.value || '';
-
-      function parseLocal(value) {
-        if (!String(value).trim()) return 0;
-        const dt = new Date(String(value).replace(' ', 'T'));
-        return Number.isNaN(dt.getTime()) ? 0 : Math.floor(dt.getTime() / 1000);
-      }
-
-      try {
-        const data = await req('/api/giveaway/admin/save', 'POST', {
-          id: current.id || 0,
-          title,
-          entry_requirement,
-          reward,
-          rules: current.rules || '',
-          start_ts: parseLocal(startRaw),
-          end_ts: parseLocal(endRaw),
-          max_entries_per_user: Number(maxEntries) || 1,
-          status: current.status || 'closed',
-        });
-        if (!data.ok) throw data;
-        showMsg('Giveaway saved');
-        await refreshAll();
-      } catch (e) {
-        showMsg(e.error || 'Save failed', true);
-      }
-    });
-    document.getElementById('gw-admin-open')?.addEventListener('click', () => adminStatus('open'));
-    document.getElementById('gw-admin-close')?.addEventListener('click', () => adminStatus('closed'));
-    document.getElementById('gw-admin-pick')?.addEventListener('click', adminDraw);
-  }
-
-  function render() {
-    const overlay = document.getElementById('giveaway-overlay');
-    if (!overlay) return;
-    let tab = getVal(K_ACTIVE_TAB, 'overview');
-    if (tab === 'enter') {
-      tab = 'overview';
-      setVal(K_ACTIVE_TAB, 'overview');
-    }
-    if (tab === 'entrants' && (!state.user || state.user.role !== 'admin')) {
-      tab = 'overview';
-      setVal(K_ACTIVE_TAB, 'overview');
-    }
-    const body = {
-      overview: overviewTab,
-      wheel: wheelTab,
-      entrants: entrantsTab,
-      winners: winnersTab,
-      admin: adminTab,
-      settings: settingsTab,
-    }[tab] || overviewTab;
-
-    overlay.innerHTML = `
-      <div class="gw-head">
-        <div class="gw-title">Torn Giveaway</div>
-        <div class="gw-btn" id="gw-close">Close</div>
-      </div>
-      <div class="gw-body">
-        ${state.message ? `<div class="gw-note ok">${esc(state.message)}</div>` : ''}
-        ${state.error ? `<div class="gw-note err">${esc(state.error)}</div>` : ''}
-        <div class="gw-tabs">
-          ${tabBtn('overview', 'Overview')}
-          ${tabBtn('wheel', 'Wheel')}
-          ${state.user && state.user.role === 'admin' ? tabBtn('entrants', 'Entrants') : ''}
-          ${tabBtn('winners', 'Winners')}
-          ${tabBtn('admin', 'Admin')}
-          ${tabBtn('settings', 'Settings')}
-        </div>
-        ${state.loading ? '<div class="gw-card"><div class="gw-value">Loading...</div></div>' : body()}
-      </div>
-    `;
-    document.getElementById('gw-close')?.addEventListener('click', toggleOverlay);
-    bindEvents();
-    initWheelTab();
-  }
-
-  function startWatch() {
-    if (watchStarted) return;
-    watchStarted = true;
-
-    ensureTimer = setInterval(() => {
-      ensureDom();
-      const g = state.current?.giveaway;
-      const overlay = document.getElementById('giveaway-overlay');
-      if (!overlay || overlay.classList.contains('hidden')) return;
-
-      const activeTab = getVal(K_ACTIVE_TAB, 'overview');
-
-      if (g && activeTab === 'overview') {
-        const countdownEl = document.getElementById('gw-live-countdown');
-        if (countdownEl) countdownEl.textContent = countdownText(g.end_ts);
-      }
-
-      if (activeTab === 'wheel') {
-        drawWheel();
-        maybeSpinWinningWheel();
-      }
-    }, 1000);
-  }
-
-  async function boot() {
-    if (document.body?.dataset?.giveawayBooted === '1') return;
-    if (document.body) document.body.dataset.giveawayBooted = '1';
-
-    ensureDom();
-    await tryAutoLogin();
-    await refreshAll();
-    startWatch();
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
-  else boot();
-})();
-
-
-/* ===== Fries Hub final cleanup: hidden standalone launchers + header-level hub button ===== */
-try {
-  GM_addStyle(`
-    #warhub-shield,
-    #warhub-badge,
-    #si-pda-launcher,
-    #giveaway-shield,
-    #warhub-shield button,
-    #warhub-badge * {
-      display: none !important;
-      opacity: 0 !important;
-      visibility: hidden !important;
-      pointer-events: none !important;
-    }
-    #fries-torn-hub-status-slot,
-    #fries-torn-hub-shield {
-      z-index: 2 !important;
-    }
-    #fries-torn-hub-overlay,
-    .thub-window,
-    #warhub-overlay,
-    #si-pda-overlay,
-    #giveaway-overlay {
-      z-index: 2147483646 !important;
-    }
-  `);
-} catch (_) {}

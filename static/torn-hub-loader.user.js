@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.5.9
-// @description  PDA friendly Torn app hub launcher with stable visible slim Fries91 faction apps button.
+// @version      0.6.0
+// @description  PDA friendly Torn app hub launcher. Simple open and close only.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -69,23 +69,8 @@
     } catch (_) {}
   }
 
-  function saveHubOpen(next, source) {
-    const wantsOpen = !!next;
-    const now = Date.now();
-
-    // Hard stop: after X or app-open closes the Hub, no delayed PDA click/touch
-    // is allowed to reopen it for a few seconds.
-    if (wantsOpen && now < state.manualCloseLockUntil) return;
-
-    state.hubOpen = wantsOpen;
-    if (state.hubOpen) {
-      state.hubOpenSince = now;
-      state.intentionalClose = false;
-    } else {
-      state.intentionalClose = true;
-      state.manualCloseLockUntil = Math.max(state.manualCloseLockUntil || 0, now + 6000);
-      state.suppressNextClickUntil = Math.max(state.suppressNextClickUntil || 0, now + 1600);
-    }
+  function saveHubOpen(next) {
+    state.hubOpen = !!next;
     renderHubVisibility();
   }
 
@@ -93,30 +78,17 @@
     if (e) {
       try { e.preventDefault(); } catch (_) {}
       try { e.stopPropagation(); } catch (_) {}
-      try { e.stopImmediatePropagation(); } catch (_) {}
     }
-
-    const now = Date.now();
     if (state.hubOpen) return;
-    if (now < state.manualCloseLockUntil) return;
-    if (isAnyAppOverlayOpen()) return;
-    if (now - state.lastHubButtonTapAt < 900) return;
-    state.lastHubButtonTapAt = now;
-    state.suppressNextClickUntil = now + 1100;
-    saveHubOpen(true, 'button');
+    saveHubOpen(true);
   }
-
 
   function closeHubFromButton(e) {
     if (e) {
       try { e.preventDefault(); } catch (_) {}
       try { e.stopPropagation(); } catch (_) {}
-      try { e.stopImmediatePropagation(); } catch (_) {}
     }
-    state.manualCloseLockUntil = Date.now() + 6000;
-    state.suppressNextClickUntil = Date.now() + 1800;
-    saveHubOpen(false, 'close');
-    setTimeout(renderHubVisibility, 30);
+    saveHubOpen(false);
   }
 
   function saveMinimizeOnOpen(next) {
@@ -168,8 +140,8 @@
         width: 100%;
         min-width: 0;
         max-width: none;
-        height: 18px;
-        border-radius: 5px;
+        height: 16px;
+        border-radius: 4px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -177,7 +149,7 @@
         border: 1px solid rgba(244,217,143,.42);
         box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 2px 7px rgba(0,0,0,.28);
         color: #f7ead0;
-        font-size: 10.5px;
+        font-size: 10px;
         font-weight: 900;
         letter-spacing: .12px;
         line-height: 1;
@@ -220,9 +192,9 @@
         padding: 1px 8px;
         width: 100%;
         max-width: 100vw;
-        height: 22px;
-        min-height: 22px;
-        max-height: 22px;
+        height: 20px;
+        min-height: 20px;
+        max-height: 20px;
         box-sizing: border-box;
         background: transparent;
         overflow: visible;
@@ -493,38 +465,9 @@
     document.body.appendChild(root);
 
     const closeBtn = document.getElementById('thub-close-btn');
-    const hubOverlay = document.getElementById(HUB_OVERLAY_ID);
-
-    if (hubOverlay) {
-      ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'touchstart', 'touchmove', 'touchend'].forEach((eventName) => {
-        hubOverlay.addEventListener(eventName, (e) => {
-          const target = e.target;
-          // Do not block the X button or app Open buttons. Capture-level blocking here
-          // was why X sometimes did not close on PDA.
-          if (target && target.closest && (target.closest('#thub-close-btn') || target.closest('[data-open-app]'))) return;
-          e.stopPropagation();
-        }, false);
-      });
-    }
-
-    // While the Hub is open, block PDA/Torn background taps from leaking through.
-    ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'touchstart', 'touchend'].forEach((eventName) => {
-      document.addEventListener(eventName, (e) => {
-        if (!state.hubOpen) return;
-        const overlayNow = document.getElementById(HUB_OVERLAY_ID);
-        const launcherNow = document.getElementById(HUB_SHIELD_ID);
-        const target = e.target;
-        if ((overlayNow && overlayNow.contains(target)) || (launcherNow && launcherNow.contains(target))) return;
-        try { e.preventDefault(); } catch (_) {}
-        try { e.stopPropagation(); } catch (_) {}
-        try { e.stopImmediatePropagation(); } catch (_) {}
-      }, true);
-    });
 
     if (closeBtn) {
-      ['pointerup', 'click', 'touchend'].forEach((eventName) => {
-        closeBtn.addEventListener(eventName, closeHubFromButton, true);
-      });
+      closeBtn.addEventListener('click', closeHubFromButton);
     }
 
     renderHubVisibility();
@@ -577,12 +520,11 @@
       overlay.style.setProperty('pointer-events', 'none', 'important');
     }
 
-    if (shield) {
-      const showShield = !state.hubOpen && !isAnyAppOverlayOpen() && !shield.classList.contains('thub-floating-fallback');
+    if (shield && !shield.classList.contains('thub-floating-fallback')) {
       shield.style.setProperty('display', 'inline-flex', 'important');
-      shield.style.setProperty('visibility', showShield ? 'visible' : 'hidden', 'important');
-      shield.style.setProperty('opacity', showShield ? '0.98' : '0', 'important');
-      shield.style.setProperty('pointer-events', showShield ? 'auto' : 'none', 'important');
+      shield.style.setProperty('visibility', 'visible', 'important');
+      shield.style.setProperty('opacity', '0.98', 'important');
+      shield.style.setProperty('pointer-events', 'auto', 'important');
     }
   }
 
@@ -628,7 +570,7 @@
       isOpen: (id) => state.openApps.has(id),
     });
 
-    saveHubOpen(false, 'app');
+    saveHubOpen(false);
     setTimeout(renderHubVisibility, 80);
   }
 
@@ -860,34 +802,11 @@
       btn.title = '🍟 Fries91\'s Faction Apps';
       btn.setAttribute('aria-label', 'Fries91 faction apps');
       btn.textContent = "🍟 Fries91's Faction Apps";
-      btn.addEventListener('pointerup', openHubFromButton, true);
-      btn.addEventListener('click', (e) => {
-        if (Date.now() < state.suppressNextClickUntil) {
-          try { e.preventDefault(); } catch (_) {}
-          try { e.stopPropagation(); } catch (_) {}
-          try { e.stopImmediatePropagation(); } catch (_) {}
-          return;
-        }
-        openHubFromButton(e);
-      }, true);
+      btn.addEventListener('click', openHubFromButton);
     }
 
-    let finalTarget = getHeaderMountTarget();
-
-    if (!finalTarget) {
-      // Header-only fallback: create a slim strip under Torn's top header area.
-      // This is not the old bottom-corner fallback; it keeps the app hub in the header zone.
-      finalTarget = findHeaderZoneFallback();
-    }
-
-    if (!finalTarget) {
-      btn.classList.add('thub-floating-fallback');
-      if (!btn.isConnected) document.body.appendChild(btn);
-      btn.style.setProperty('display', 'none', 'important');
-      btn.style.setProperty('visibility', 'hidden', 'important');
-      btn.style.setProperty('pointer-events', 'none', 'important');
-      return false;
-    }
+    const finalTarget = getHeaderMountTarget();
+    if (!finalTarget) return false;
 
     btn.classList.remove('thub-floating-fallback');
     btn.style.removeProperty('display');
@@ -1058,7 +977,7 @@
       registerDemoApps();
 
       try {
-        GM_registerMenuCommand('Open Torn Hub', () => saveHubOpen(true, 'menu')); 
+        GM_registerMenuCommand('Open Torn Hub', () => saveHubOpen(true)); 
       } catch (_) {}
     }
 
@@ -1070,32 +989,18 @@
   }
 
   function startMountWatch() {
-    // PDA-safe light sync. The Hub opens only from 🍟 and closes only from X/Open.
+    // No fallback loops and no open/close watcher.
+    // Only remount the app button if Torn redraws the header.
     setInterval(() => {
       if (!document.body) return;
-      if (!document.getElementById(HUB_ID)) ensureRoot();
-
-      if (state.hubOpen) {
-        renderHubVisibility();
-        return;
-      }
-
       forceHideBottomCornerLaunchersCss();
       hideStandaloneLaunchers();
-
-      if (isAnyAppOverlayOpen()) {
-        renderHubVisibility();
-        return;
+      const btn = document.getElementById(HUB_SHIELD_ID);
+      const slot = document.getElementById(HUB_STATUS_SLOT_ID);
+      if (!btn || !slot || !slot.isConnected || btn.parentElement !== slot) {
+        ensureHeaderButton();
       }
-
-      ensureHeaderButton();
-      renderHubVisibility();
-    }, 2500);
-
-    // Small sticky guard: if PDA/Torn redraws CSS while Hub is open, put it back.
-    setInterval(() => {
-      if (state.hubOpen) renderHubVisibility();
-    }, 650);
+    }, 4000);
   }
 
   try { boot(); } catch (e) {}

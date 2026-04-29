@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.6.3
-// @description  PDA friendly Torn app hub launcher with War Hub, Insurance, Giveaway, and Company Hub.
+// @version      0.6.5
+// @description  PDA friendly Torn app hub launcher with bank request alerts, War Hub, Insurance, Giveaway, Company Hub, and Rolling Lottery.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -13,11 +13,13 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_xmlhttpRequest
 // @connect      torn-war-bot.onrender.com
+// @connect      ffscouter.com
+// @connect      raw.githubusercontent.com
 // @connect      xanax-insurance.onrender.com
 // @connect      sinner-s-lottery.onrender.com
-// @connect      trains-selling-enterprise.onrender.com
 // @connect      api.torn.com
-// @connect      ffscouter.com
+// @connect      trains-selling-enterprise.onrender.com
+// @connect      faction-bankers-request.onrender.com
 // @run-at       document-end
 // ==/UserScript==
 
@@ -77,6 +79,25 @@
     state.hubOpen = !!next;
     renderHubVisibility();
   }
+
+  function updateHubBankAlert(count, canBank) {
+    const btn = document.getElementById(HUB_SHIELD_ID);
+    const n = Math.max(0, Number(count || 0) | 0);
+    const showAlert = !!canBank && n > 0;
+
+    if (btn) {
+      btn.setAttribute('data-bank-count', n > 99 ? '99+' : String(n));
+      btn.classList.toggle('thub-bank-alert', showAlert);
+      btn.title = showAlert
+        ? `${n} pending bank request${n === 1 ? '' : 's'} — open Fries91's Faction Apps`
+        : '🍟 Fries91\'s Faction Apps';
+    }
+  }
+
+  window.__FRIES_HUB_BANK_ALERT__ = {
+    set: function (count, canBank) { updateHubBankAlert(count, canBank); },
+    clear: function () { updateHubBankAlert(0, false); }
+  };
 
   function openHubFromButton(e) {
     if (e) {
@@ -184,6 +205,32 @@
 
       #${HUB_SHIELD_ID}:active {
         transform: scale(.96);
+      }
+
+      #${HUB_SHIELD_ID}.thub-bank-alert {
+        border-color: rgba(255,80,80,.95);
+        background: linear-gradient(180deg, rgba(170,20,24,.98), rgba(72,10,12,.98));
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 0 10px rgba(255,0,0,.55), 0 2px 7px rgba(0,0,0,.35);
+      }
+
+      #${HUB_SHIELD_ID}.thub-bank-alert::after {
+        content: attr(data-bank-count);
+        position: absolute;
+        right: 6px;
+        top: -7px;
+        min-width: 15px;
+        height: 15px;
+        padding: 0 4px;
+        border-radius: 999px;
+        background: #ff3030;
+        color: #fff;
+        border: 1px solid rgba(255,255,255,.70);
+        box-shadow: 0 2px 6px rgba(0,0,0,.55);
+        font-size: 9px;
+        font-weight: 1000;
+        line-height: 15px;
+        text-align: center;
+        pointer-events: none;
       }
 
       #${HUB_STATUS_SLOT_ID} {
@@ -427,12 +474,27 @@
         opacity: .8;
         padding: 10px 0;
       }
+
+      .thub-bank-card { border: 1px solid rgba(255,211,106,.24); border-radius: 14px; padding: 11px; margin-bottom: 12px; background: linear-gradient(180deg, rgba(255,211,106,.08), rgba(255,255,255,.035)); }
+      .thub-bank-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+      .thub-bank-title { font-size:13px; font-weight:900; color:#f4d98f; }
+      .thub-bank-sub { font-size:10px; opacity:.72; margin-top:2px; }
+      .thub-bank-grid { display:grid; grid-template-columns:1fr; gap:7px; }
+      .thub-bank-input { width:100%; box-sizing:border-box; border:1px solid rgba(255,255,255,.14); border-radius:10px; background:rgba(0,0,0,.30); color:#fff; padding:9px 10px; font-size:13px; outline:none; }
+      .thub-bank-actions { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+      .thub-bank-status { min-height:14px; font-size:11px; opacity:.82; margin-top:7px; }
+      .thub-bank-status.good { color:#8dffac; opacity:1; }
+      .thub-bank-status.bad { color:#ff9b9b; opacity:1; }
+      @media (max-width:420px) { .thub-bank-actions { grid-template-columns:1fr; } }
+
     `);
     GM_addStyle(`
       #warhub-shield,
       #warhub-badge,
       #si-pda-launcher,
       #giveaway-shield,
+      #fb-bank-coin-clean,
+      #fb-setup-button,
       #tse_hq_badge,
       #warhub-shield button,
       #warhub-badge * {
@@ -461,6 +523,25 @@
           </div>
         </div>
         <div class="thub-body">
+          <div class="thub-bank-card" id="thub-bank-card">
+            <div class="thub-bank-head">
+              <div>
+                <div class="thub-bank-title">🪙 Bank Request</div>
+                <div class="thub-bank-sub">Request faction vault money from bankers</div>
+              </div>
+              <button class="thub-btn" id="thub-bank-board-btn" type="button">Board</button>
+            </div>
+            <div class="thub-bank-grid">
+              <input class="thub-bank-input" id="thub-bank-key" placeholder="Torn API key for bank requests">
+              <input class="thub-bank-input" id="thub-bank-amount" inputmode="numeric" placeholder="Amount needed">
+              <div class="thub-bank-actions">
+                <button class="thub-btn thub-open" id="thub-bank-send" type="button">Request Amount</button>
+                <button class="thub-btn" id="thub-bank-full" type="button">Full Balance</button>
+              </div>
+            </div>
+            <div class="thub-bank-status" id="thub-bank-status">Save your key once, then request from here.</div>
+          </div>
+
           <div class="thub-section-title">Apps</div>
           <div class="thub-grid" id="thub-app-grid"></div>
         </div>
@@ -474,6 +555,7 @@
     if (closeBtn) {
       closeBtn.addEventListener('click', closeHubFromButton);
     }
+    bindBankRequestBox();
 
     renderHubVisibility();
     renderHubCards();
@@ -531,6 +613,85 @@
       shield.style.setProperty('opacity', '0.98', 'important');
       shield.style.setProperty('pointer-events', 'auto', 'important');
     }
+  }
+
+
+
+  const HUB_BANK_API_BASE = 'https://faction-bankers-request.onrender.com';
+  const HUB_BANK_KEY = 'fb_api_key_v1';
+  const HUB_BANK_FULL_NOTE = '__FULL_BALANCE_REQUEST__';
+
+  function setHubBankStatus(msg, good) {
+    const el = document.getElementById('thub-bank-status');
+    if (!el) return;
+    el.textContent = String(msg || '');
+    el.classList.remove('good', 'bad');
+    if (good === true) el.classList.add('good');
+    if (good === false) el.classList.add('bad');
+  }
+  function getHubBankKey() { try { return String(GM_getValue(HUB_BANK_KEY, '') || '').trim(); } catch (_) { return ''; } }
+  function saveHubBankKeyFromBox() {
+    const input = document.getElementById('thub-bank-key');
+    const val = String((input && input.value) || '').trim();
+    if (val) { try { GM_setValue(HUB_BANK_KEY, val); } catch (_) {} }
+    return val || getHubBankKey();
+  }
+  function syncHubBankKeyBox() {
+    const input = document.getElementById('thub-bank-key');
+    if (!input) return;
+    const key = getHubBankKey();
+    if (key && !input.value) input.value = key;
+  }
+  function hubBankRequest(method, path, body) {
+    const key = saveHubBankKeyFromBox();
+    return new Promise((resolve, reject) => {
+      if (!key) { reject(new Error('Add your Torn API key first.')); return; }
+      GM_xmlhttpRequest({
+        method: method || 'GET',
+        url: HUB_BANK_API_BASE.replace(/\/$/, '') + path,
+        headers: { 'Content-Type': 'application/json', 'X-Torn-Key': key },
+        data: body ? JSON.stringify(body) : undefined,
+        timeout: 25000,
+        onload: (res) => {
+          let data = {};
+          try { data = JSON.parse(res.responseText || '{}'); } catch (_) { data = { ok:false, error:res.responseText || 'Bad response' }; }
+          if (res.status >= 200 && res.status < 300) resolve(data);
+          else reject(new Error(data.error || ('HTTP ' + res.status)));
+        },
+        onerror: () => reject(new Error('Network error')),
+        ontimeout: () => reject(new Error('Request timed out')),
+      });
+    });
+  }
+  async function submitHubBankRequest(fullBalance) {
+    const amountInput = document.getElementById('thub-bank-amount');
+    const amountRaw = String((amountInput && amountInput.value) || '').replace(/[^\d]/g, '');
+    const amount = fullBalance ? 1 : Number(amountRaw);
+    const note = fullBalance ? HUB_BANK_FULL_NOTE : '';
+    if (!fullBalance && (!amount || amount < 1)) { setHubBankStatus('Enter a valid amount.', false); return; }
+    try {
+      setHubBankStatus(fullBalance ? 'Sending full balance request...' : 'Sending request...', null);
+      await hubBankRequest('POST', '/api/banker/requests', { amount, note });
+      if (amountInput && !fullBalance) amountInput.value = '';
+      setHubBankStatus(fullBalance ? 'Full balance request sent.' : 'Request sent to bankers.', true);
+      if (window.__FRIES_BANKERS_BRIDGE__ && typeof window.__FRIES_BANKERS_BRIDGE__.refresh === 'function') { try { window.__FRIES_BANKERS_BRIDGE__.refresh(); } catch (_) {} }
+    } catch (err) { setHubBankStatus(err && err.message ? err.message : 'Request failed.', false); }
+  }
+  function openHubBankBoard() {
+    saveHubOpen(false);
+    if (window.__FRIES_BANKERS_BRIDGE__ && typeof window.__FRIES_BANKERS_BRIDGE__.open === 'function') { window.__FRIES_BANKERS_BRIDGE__.open(); return; }
+    createWindow({ id:'bankers-error', title:'Bank Request Board', width:420, content:'<div class="thub-card"><div class="thub-app-name">Bank Request Board is loading</div><div class="thub-app-desc">Try again in a second. The quick request box above can still send requests.</div></div>' });
+  }
+  function bindBankRequestBox() {
+    syncHubBankKeyBox();
+    const send = document.getElementById('thub-bank-send');
+    const full = document.getElementById('thub-bank-full');
+    const board = document.getElementById('thub-bank-board-btn');
+    const key = document.getElementById('thub-bank-key');
+    if (send) send.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); submitHubBankRequest(false); });
+    if (full) full.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); submitHubBankRequest(true); });
+    if (board) board.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openHubBankBoard(); });
+    if (key) key.addEventListener('change', () => { saveHubBankKeyFromBox(); setHubBankStatus('API key saved for bank requests.', true); });
   }
 
   function renderHubCards() {
@@ -822,6 +983,7 @@
       btn.title = '🍟 Fries91\'s Faction Apps';
       btn.setAttribute('aria-label', 'Fries91 faction apps');
       btn.textContent = "🍟 Fries91's Faction Apps";
+      btn.setAttribute('data-bank-count', '0');
       btn.addEventListener('click', openHubFromButton);
     }
 
@@ -877,7 +1039,7 @@
         var el = document.getElementById(id);
         if (el && el.parentNode) el.parentNode.removeChild(el);
       });
-      ['si-pda-launcher','giveaway-shield'].forEach(function(id){
+      ['si-pda-launcher','giveaway-shield','fb-bank-coin-clean','fb-setup-button','tse_hq_badge'].forEach(function(id){
         var el = document.getElementById(id);
         if (!el) return;
         el.style.setProperty('display', 'none', 'important');
@@ -894,12 +1056,99 @@
       if (document.getElementById('fries-hide-bottom-launchers-style')) return;
       var style = document.createElement('style');
       style.id = 'fries-hide-bottom-launchers-style';
-      style.textContent = '#warhub-shield,#warhub-badge,#si-pda-launcher,#giveaway-shield,#tse_hq_badge{display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;}';
+      style.textContent = '#warhub-shield,#warhub-badge,#si-pda-launcher,#giveaway-shield,#fb-bank-coin-clean,#fb-setup-button,#tse_hq_badge{display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;}';
       document.documentElement.appendChild(style);
     } catch (_) {}
   }
 
 
+  function showModuleMessage(createWindow, id, title, htmlContent) {
+    const existing = document.getElementById(`thub-window-${id}`);
+    if (existing) {
+      const body = existing.querySelector('.thub-window-body');
+      if (body) body.innerHTML = htmlContent;
+      existing.style.display = 'block';
+      return existing;
+    }
+    return createWindow({ id, title, width: 420, content: htmlContent });
+  }
+
+  function openVisibleOverlayById(ids) {
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      try {
+        el.classList.add('open');
+        el.classList.remove('hidden');
+        el.style.setProperty('display', 'flex', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+        el.style.setProperty('opacity', '1', 'important');
+        el.style.setProperty('pointer-events', 'auto', 'important');
+        return true;
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  function loadRemoteUserscriptOnce(key, urls) {
+    const flag = `__FRIES_REMOTE_LOADING_${key}__`;
+    const done = `__FRIES_REMOTE_LOADED_${key}__`;
+    if (window[done]) return Promise.resolve(true);
+    if (window[flag]) return window[flag];
+    const tryUrl = (index) => new Promise((resolve) => {
+      if (index >= urls.length) { resolve(false); return; }
+      GM_xmlhttpRequest({
+        method: 'GET',
+        url: urls[index],
+        timeout: 20000,
+        onload: function (resp) {
+          const code = String((resp && resp.responseText) || '');
+          if (!resp || resp.status < 200 || resp.status >= 300 || code.length < 500) { tryUrl(index + 1).then(resolve); return; }
+          try {
+            new Function(code + '\n//# sourceURL=' + urls[index])();
+            window[done] = true;
+            resolve(true);
+          } catch (_) { tryUrl(index + 1).then(resolve); }
+        },
+        onerror: function () { tryUrl(index + 1).then(resolve); },
+        ontimeout: function () { tryUrl(index + 1).then(resolve); }
+      });
+    });
+    window[flag] = tryUrl(0).then((ok) => { if (!ok) window[flag] = null; return ok; });
+    return window[flag];
+  }
+
+  function openExternalModule(opts, createWindow) {
+    const title = opts.title;
+    const bridgeName = opts.bridgeName;
+    const overlayIds = opts.overlayIds || [];
+    const launcherIds = opts.launcherIds || [];
+    const urls = opts.urls || [];
+    const errorId = opts.errorId;
+    function openBridge() {
+      const bridge = window[bridgeName];
+      if (bridge && typeof bridge.open === 'function') {
+        launcherIds.forEach((id) => {
+          try { const launcher = document.getElementById(id); if (launcher) launcher.style.setProperty('display', 'none', 'important'); } catch (_) {}
+        });
+        bridge.open();
+        setTimeout(renderHubVisibility, 120);
+        return true;
+      }
+      return false;
+    }
+    if (openBridge()) return;
+    if (openVisibleOverlayById(overlayIds)) { setTimeout(renderHubVisibility, 120); return; }
+    showModuleMessage(createWindow, `${errorId}-loading`, title, `<div class="thub-card"><div class="thub-app-name">Opening ${escapeHtml(title)}...</div><div class="thub-app-desc">Loading the app module. If this stays here, make sure that app script is installed or added into this Hub build.</div></div>`);
+    loadRemoteUserscriptOnce(errorId, urls).then(function () {
+      setTimeout(function () {
+        closeWindow(`${errorId}-loading`);
+        if (openBridge()) return;
+        if (openVisibleOverlayById(overlayIds)) return;
+        showModuleMessage(createWindow, `${errorId}-error`, title, `<div class="thub-card"><div class="thub-app-name">${escapeHtml(title)} is not loaded yet</div><div class="thub-app-desc">The Hub button is working, but this app is not embedded in the current Hub file and no bridge was found. Send me the latest ${escapeHtml(title)} userscript and I can merge it directly into the Hub like War Hub.</div></div>`);
+      }, 350);
+    });
+  }
   function openWarHubModule(createWindow) {
     if (window.__FRIES_WARHUB_BRIDGE__ && typeof window.__FRIES_WARHUB_BRIDGE__.open === 'function') {
       hideStandaloneLaunchers();
@@ -938,27 +1187,17 @@
       icon: '💊',
       description: 'Insurance plans, activations, claims, payouts, and admin tools.',
       open: ({ createWindow }) => {
-        if (window.__FRIES_INSURANCE_BRIDGE__ && typeof window.__FRIES_INSURANCE_BRIDGE__.open === 'function') {
-          try {
-            const launcher = document.getElementById('si-pda-launcher');
-            if (launcher) launcher.style.display = 'none';
-          } catch (_) {}
-          window.__FRIES_INSURANCE_BRIDGE__.open();
-          setTimeout(renderHubVisibility, 50);
-          return;
-        }
-
-        createWindow({
-          id: 'insurance-error',
+        openExternalModule({
           title: 'Sinner Insurance',
-          width: 420,
-          content: `
-            <div class="thub-card">
-              <div class="thub-app-name">Sinner Insurance could not load</div>
-              <div class="thub-app-desc">The embedded insurance module bridge was not found in this merged build.</div>
-            </div>
-          `,
-        });
+          bridgeName: '__FRIES_INSURANCE_BRIDGE__',
+          errorId: 'insurance',
+          overlayIds: ['si-pda-overlay', 'sinners-insurance-overlay', 'xanax-insurance-overlay', 'si-overlay'],
+          launcherIds: ['si-pda-launcher', 'sinners-insurance-launcher'],
+          urls: [
+            'https://raw.githubusercontent.com/Fries91/xanax-insurance/main/static/xanax-insurance.user.js',
+            'https://raw.githubusercontent.com/Fries91/xanax-insurance/main/static/xanax-insurance-pc.user.js'
+          ]
+        }, createWindow);
       },
     });
 
@@ -968,29 +1207,21 @@
       icon: '🎟️',
       description: 'Giveaway entries, draw wheel, winners, countdowns, and admin controls.',
       open: ({ createWindow }) => {
-        if (window.__FRIES_GIVEAWAY_BRIDGE__ && typeof window.__FRIES_GIVEAWAY_BRIDGE__.open === 'function') {
-          try {
-            const launcher = document.getElementById('giveaway-shield');
-            if (launcher) launcher.style.display = 'none';
-          } catch (_) {}
-          window.__FRIES_GIVEAWAY_BRIDGE__.open();
-          setTimeout(renderHubVisibility, 50);
-          return;
-        }
-
-        createWindow({
-          id: 'lottery-error',
+        openExternalModule({
           title: 'Giveaway',
-          width: 420,
-          content: `
-            <div class="thub-card">
-              <div class="thub-app-name">Giveaway could not load</div>
-              <div class="thub-app-desc">The embedded giveaway module bridge was not found in this merged build.</div>
-            </div>
-          `,
-        });
+          bridgeName: '__FRIES_GIVEAWAY_BRIDGE__',
+          errorId: 'giveaway',
+          overlayIds: ['giveaway-overlay', 'sinners-lottery-overlay', 'lottery-overlay'],
+          launcherIds: ['giveaway-shield', 'lottery-shield'],
+          urls: [
+            'https://raw.githubusercontent.com/Fries91/Sinner-s-Lottery/main/static/giveaway.user.js',
+            'https://raw.githubusercontent.com/Fries91/Sinner-s-Lottery/main/static/sinners-lottery.user.js',
+            'https://raw.githubusercontent.com/Fries91/Sinner-s-Lottery/main/static/lottery.user.js'
+          ]
+        }, createWindow);
       },
     });
+  }
 
 
     registerApp({
@@ -999,30 +1230,20 @@
       icon: '🏤',
       description: 'Company tools, trains, HoF search, notes, and company keys.',
       open: ({ createWindow }) => {
-        if (window.__FRIES_COMPANY_BRIDGE__ && typeof window.__FRIES_COMPANY_BRIDGE__.open === 'function') {
-          try {
-            const launcher = document.getElementById('tse_hq_badge');
-            if (launcher) launcher.style.display = 'none';
-          } catch (_) {}
-          window.__FRIES_COMPANY_BRIDGE__.open();
-          setTimeout(renderHubVisibility, 50);
-          return;
-        }
-
-        createWindow({
-          id: 'companyhub-error',
-          title: 'Company Hub',
-          width: 420,
-          content: `
-            <div class="thub-card">
-              <div class="thub-app-name">Company Hub could not load</div>
-              <div class="thub-app-desc">The embedded Company Hub bridge was not found in this merged build.</div>
-            </div>
-          `,
-        });
+        if (window.__FRIES_COMPANY_HUB_BRIDGE__ && typeof window.__FRIES_COMPANY_HUB_BRIDGE__.open === 'function') { window.__FRIES_COMPANY_HUB_BRIDGE__.open(); return; }
+        createWindow({ id:'companyhub-error', title:'Company Hub', width:420, content:'<div class="thub-card"><div class="thub-app-name">Company Hub is not loaded yet</div><div class="thub-app-desc">Refresh Torn once and try again.</div></div>' });
       },
     });
-  }
+
+    registerApp({
+      id: 'rollinglottery',
+      name: 'Rolling Lottery',
+      icon: '🎰',
+      description: 'Rolling lottery placeholder for the next app build.',
+      open: ({ createWindow }) => {
+        createWindow({ id:'rolling-lottery', title:'Rolling Lottery', width:420, content:'<div class="thub-card"><div class="thub-app-name">Rolling Lottery</div><div class="thub-app-desc">This tab is ready. Send me the script/details next and I will build it into the Hub.</div></div>' });
+      },
+    });
 
   function boot() {
     state.minimizeOnOpen = false;
@@ -1090,10 +1311,6 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_info
 // @connect      torn-war-bot.onrender.com
-// @connect      xanax-insurance.onrender.com
-// @connect      sinner-s-lottery.onrender.com
-// @connect      trains-selling-enterprise.onrender.com
-// @connect      api.torn.com
 // @connect      ffscouter.com
 // ==/UserScript==
 
@@ -6210,7 +6427,6 @@ function _handleActionClick() {
 })();
 
 /* ===== Embedded Sinner Insurance module ===== */
-
 // ==UserScript==
 // @name         Sinner's Insurance 7DS
 // @namespace    fries91-xanax-insurance
@@ -8203,8 +8419,8 @@ function _handleActionClick() {
     function addStyles() {
         if (document.getElementById('si-pda-style-flag')) return;
         GM_addStyle(`
-#si-pda-launcher{display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;}
-#si-pda-launcher button{display:none!important;}
+#si-pda-launcher{position:fixed!important;left:10px!important;bottom:10px!important;z-index:2147483647!important;width:118px!important;height:28px!important;display:flex!important;align-items:center!important;justify-content:center!important;}
+#si-pda-launcher button{width:118px!important;height:28px!important;border-radius:9px!important;border:1px solid rgba(205,164,74,.5)!important;background:linear-gradient(180deg,rgba(90,12,18,.95),rgba(35,8,10,.98))!important;color:#f5df9d!important;font-size:10px!important;font-weight:800!important;letter-spacing:.1px!important;box-shadow:0 8px 20px rgba(0,0,0,.35)!important;}
 #si-pda-backdrop{position:fixed!important;inset:0!important;background:rgba(0,0,0,.62)!important;z-index:2147483645!important;display:none!important;}
 #si-pda-backdrop.open{display:block!important;}
 #si-pda-overlay{position:fixed!important;left:10px!important;right:10px!important;top:78px!important;bottom:84px!important;z-index:2147483646!important;display:none!important;flex-direction:column!important;overflow:hidden!important;border-radius:14px!important;border:1px solid rgba(201,162,80,.22)!important;background:linear-gradient(180deg,rgba(28,10,14,.99),rgba(8,5,8,.99))!important;color:#f7ead0!important;box-shadow:0 20px 55px rgba(0,0,0,.55)!important;}
@@ -8272,23 +8488,21 @@ function _handleActionClick() {
             overlay.id = 'si-pda-overlay';
             document.body.appendChild(overlay);
         }
+
+        if (!launcher || !document.body.contains(launcher)) {
+            launcher = document.createElement('div');
+            launcher.id = 'si-pda-launcher';
+            launcher.innerHTML = '<button type="button">💊 Sinner\'s Insurance</button>';
+            document.body.appendChild(launcher);
+            var btn = launcher.querySelector('button');
+            if (btn) btn.addEventListener('click', openOverlay);
+        }
     }
 
 
-
     window.__FRIES_INSURANCE_BRIDGE__ = {
-        open: function () {
-            try {
-                ensureMounted();
-                openOverlay();
-                var l = document.getElementById('si-pda-launcher');
-                if (l) l.remove();
-            } catch (_e) {}
-        },
-        close: function () {
-            try { closeOverlay(); } catch (_e) {}
-        },
-        overlayEl: function () { return overlay; }
+        open: function () { ensureMounted(); if (launcher && launcher.parentNode) launcher.parentNode.removeChild(launcher); openOverlay(); },
+        close: function () { closeOverlay(); }
     };
 
     function boot() {
@@ -8320,13 +8534,12 @@ function _handleActionClick() {
     }
 })();
 
-/* ===== Embedded Giveaway module ===== */
-
+/* ===== Embedded Giveaway module v1.4.4 ===== */
 // ==UserScript==
 // @name         Torn Giveaway Overlay
 // @namespace    torn.giveaway.overlay
-// @version      1.4.3
-// @description  Giveaway overlay for Torn with entry requirement, reward, countdown, entrants, winners, and admin controls, plus a visual wheel tab.
+// @version      1.4.4
+// @description  Giveaway overlay for Torn with entry requirement, reward, countdown, entrants, winners, and admin controls, plus a visual wheel tab and clean new-round entrant resets.
 // @author       OpenAI
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -8876,6 +9089,7 @@ function _handleActionClick() {
     const endRaw = String(document.getElementById('gw-admin-end')?.value || '').trim();
     const maxEntries = Number(document.getElementById('gw-admin-max')?.value || current.max_entries_per_user || 1) || 1;
     const status = String(document.getElementById('gw-admin-status')?.value || current.status || 'draft').trim();
+    const newRound = document.getElementById('gw-admin-new-round')?.value === '1';
 
     if (!title) return showMsg('Enter a giveaway title', true);
     if (!reward) return showMsg('Enter a reward', true);
@@ -8888,7 +9102,7 @@ function _handleActionClick() {
 
     try {
       const data = await req('/api/giveaway/admin/save', 'POST', {
-        id: current.id || 0,
+        id: newRound ? 0 : (current.id || 0),
         title,
         entry_requirement: entry_requirement || '1 free entry',
         reward,
@@ -8897,9 +9111,18 @@ function _handleActionClick() {
         end_ts: parseLocal(endRaw),
         max_entries_per_user: Math.max(1, maxEntries),
         status: status || 'draft',
+        new_round: newRound,
       });
       if (!data.ok) throw data;
-      showMsg('Giveaway saved');
+      if (newRound) {
+        setStoredObject(K_WHEEL_LAYOUTS, {});
+        setStoredObject(K_WHEEL_SPINS, {});
+        wheelState.rotation = 0;
+        wheelState.lastSpinKey = '';
+        state.entrantSearch = '';
+      }
+      if (data.giveaway) state.current = data;
+      showMsg(data.message || (newRound ? 'New round saved and entrants cleared' : 'Giveaway saved'));
       await refreshAll();
     } catch (e) {
       showMsg(e.error || 'Save failed', true);
@@ -8934,7 +9157,7 @@ function _handleActionClick() {
 
   function css() {
     return `
-#giveaway-shield{display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;}
+#giveaway-shield{position:fixed;right:0;top:50vh;transform:translateY(-50%);z-index:2147483647;width:120px;height:40px;border-radius:14px 0 0 14px;background:linear-gradient(180deg,#a51515 0%, #5e0d0d 100%);box-shadow:0 4px 14px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;cursor:pointer;user-select:none;letter-spacing:.5px;writing-mode:horizontal-tb;text-orientation:mixed;white-space:nowrap}
 #giveaway-overlay{position:fixed;right:78px;top:110px;width:min(440px,92vw);max-height:78vh;overflow:auto;z-index:2147483646;background:#111;border:1px solid #571818;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.6);color:#eee;font:14px/1.35 Arial,sans-serif}
 #giveaway-overlay.hidden{display:none}
 .gw-head{position:sticky;top:0;background:linear-gradient(180deg,#2b0b0b,#120606);padding:10px 12px;border-bottom:1px solid #4e1717;display:flex;justify-content:space-between;align-items:center;z-index:2}
@@ -9001,7 +9224,7 @@ function _handleActionClick() {
   #giveaway-overlay{right:4vw;left:4vw;width:auto;top:80px;max-height:82vh}
   .gw-tabs{grid-template-columns:repeat(3,1fr)}
   .gw-grid,.gw-grid-3,.gw-actions,.gw-actions-3,.gw-overview-stats,.gw-detail-grid{grid-template-columns:1fr}
-  #giveaway-shield{display:none!important}
+  #giveaway-shield{right:0;top:50vh;transform:translateY(-50%);width:104px;height:36px;border-radius:12px 0 0 12px;font-size:12px}
 }
     `;
   }
@@ -9013,6 +9236,17 @@ function _handleActionClick() {
       marker.id = 'giveaway-style';
       marker.style.display = 'none';
       document.body.appendChild(marker);
+    }
+
+    let shield = document.getElementById('giveaway-shield');
+    if (!shield) {
+      shield = document.createElement('div');
+      shield.id = 'giveaway-shield';
+      shield.textContent = 'GIVEAWAY';
+      document.body.appendChild(shield);
+      shield.addEventListener('click', toggleOverlay);
+      makeDraggable(shield, K_SHIELD_POS);
+      applyStoredPos(shield, K_SHIELD_POS, { right: '0', top: '50vh', transform: 'translateY(-50%)' });
     }
 
     let overlay = document.getElementById('giveaway-overlay');
@@ -9234,6 +9468,17 @@ function _handleActionClick() {
             <div class="gw-label">End</div>
             <input class="gw-input" id="gw-admin-end" value="${g.end_ts ? new Date(g.end_ts * 1000).toISOString().slice(0,16).replace('T',' ') : ''}" placeholder="YYYY-MM-DD HH:MM" />
           </div>
+          <div>
+            <div class="gw-label">Save Mode</div>
+            <select class="gw-select" id="gw-admin-new-round">
+              <option value="0" selected>Update this giveaway</option>
+              <option value="1">Start new round - clear entrants</option>
+            </select>
+          </div>
+          <div>
+            <div class="gw-label">New Round Note</div>
+            <div class="gw-mini">Choose new round when you are making the next giveaway. It creates a fresh draw with 0 entrants and clears the wheel.</div>
+          </div>
         </div>
         <div class="gw-spacer"></div>
         <div class="gw-grid">
@@ -9445,6 +9690,7 @@ function _handleActionClick() {
       const maxEntries = document.getElementById('gw-admin-max')?.value || '1';
       const startRaw = document.getElementById('gw-admin-start')?.value || '';
       const endRaw = document.getElementById('gw-admin-end')?.value || '';
+      const newRound = document.getElementById('gw-admin-new-round')?.value === '1';
 
       function parseLocal(value) {
         if (!String(value).trim()) return 0;
@@ -9454,7 +9700,7 @@ function _handleActionClick() {
 
       try {
         const data = await req('/api/giveaway/admin/save', 'POST', {
-          id: current.id || 0,
+          id: newRound ? 0 : (current.id || 0),
           title,
           entry_requirement,
           reward,
@@ -9463,9 +9709,18 @@ function _handleActionClick() {
           end_ts: parseLocal(endRaw),
           max_entries_per_user: Number(maxEntries) || 1,
           status: current.status || 'closed',
+          new_round: newRound,
         });
         if (!data.ok) throw data;
-        showMsg('Giveaway saved');
+        if (newRound) {
+          setStoredObject(K_WHEEL_LAYOUTS, {});
+          setStoredObject(K_WHEEL_SPINS, {});
+          wheelState.rotation = 0;
+          wheelState.lastSpinKey = '';
+          state.entrantSearch = '';
+        }
+        if (data.giveaway) state.current = data;
+        showMsg(data.message || (newRound ? 'New round saved and entrants cleared' : 'Giveaway saved'));
         await refreshAll();
       } catch (e) {
         showMsg(e.error || 'Save failed', true);
@@ -9521,35 +9776,6 @@ function _handleActionClick() {
     initWheelTab();
   }
 
-
-
-  window.__FRIES_GIVEAWAY_BRIDGE__ = {
-    open: async function () {
-      try {
-        ensureDom();
-        const overlay = document.getElementById('giveaway-overlay');
-        if (overlay && overlay.classList.contains('hidden')) {
-          overlay.classList.remove('hidden');
-          setVal(K_OVERLAY_OPEN, true);
-          await refreshForTab(getVal(K_ACTIVE_TAB, 'overview'));
-        } else if (overlay) {
-          setVal(K_OVERLAY_OPEN, true);
-          render();
-        }
-        const s = document.getElementById('giveaway-shield');
-        if (s) s.remove();
-      } catch (_e) {}
-    },
-    close: function () {
-      try {
-        const overlay = document.getElementById('giveaway-overlay');
-        if (overlay) overlay.classList.add('hidden');
-        setVal(K_OVERLAY_OPEN, false);
-      } catch (_e) {}
-    },
-    overlayEl: function () { return document.getElementById('giveaway-overlay'); }
-  };
-
   function startWatch() {
     if (watchStarted) return;
     watchStarted = true;
@@ -9586,10 +9812,21 @@ function _handleActionClick() {
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
+
+  window.__FRIES_GIVEAWAY_BRIDGE__ = {
+    open: async function () {
+      ensureDom();
+      const shield = document.getElementById('giveaway-shield');
+      if (shield && shield.parentNode) shield.parentNode.removeChild(shield);
+      const overlay = document.getElementById('giveaway-overlay');
+      if (overlay) { overlay.classList.remove('hidden'); setVal(K_OVERLAY_OPEN, true); await refreshForTab(getVal(K_ACTIVE_TAB, 'overview')); }
+    },
+    close: function () { const overlay = document.getElementById('giveaway-overlay'); if (overlay) overlay.classList.add('hidden'); setVal(K_OVERLAY_OPEN, false); }
+  };
+
 })();
 
 /* ===== Embedded Company Hub module ===== */
-
 // ==UserScript==
 // @name         T.S.E Headquarters 🏤
 // @namespace    fries91-tse-hq
@@ -9958,8 +10195,6 @@ function _handleActionClick() {
       }
     `);
 
-    GM_addStyle(`#tse_hq_badge{display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;}`);
-
     function buildBadge() {
       const old = document.getElementById("tse_hq_badge");
       if (old) old.remove();
@@ -10239,19 +10474,6 @@ function _handleActionClick() {
         renderBody();
         openPanel();
       }
-
-
-
-      window.__FRIES_COMPANY_BRIDGE__ = {
-        open: function () {
-          try { openAndRefresh(); } catch (_e) { try { openPanel(); } catch (_e2) {} }
-          try { if (badge) badge.remove(); } catch (_e3) {}
-        },
-        close: function () {
-          try { closePanel(); } catch (_e) {}
-        },
-        overlayEl: function () { return panel; }
-      };
 
       function togglePanel() {
         if (badgeDrag.wasMoved()) return;
@@ -11073,8 +11295,1553 @@ function _handleActionClick() {
       else closePanel();
     }
 
+
+
+    window.__FRIES_COMPANY_HUB_BRIDGE__ = {
+      open: function () { ensureMounted(); if (badge && badge.parentNode) badge.parentNode.removeChild(badge); if (panel) panel.classList.add('tse_open'); },
+      close: function () { if (panel) panel.classList.remove('tse_open'); }
+    };
+
     safeMount();
   } catch (e) {
     console.error("TSE HQ fatal error:", e);
   }
+})();
+
+/* ===== Embedded Faction Bankers module ===== */
+// ==UserScript==
+// @name         Torn Faction Bankers 🪙 
+// @namespace    Fries91.Torn.FactionBankers.
+// @version      0.5.8
+// @description  Faction vault request app with header coin alert and built-in faction page request bar.
+// @author       Fries91
+// @match        https://www.torn.com/*
+// @match        https://torn.com/*
+// @run-at       document-idle
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @connect      faction-bankers-request.onrender.com
+// @connect      api.torn.com
+// @connect      *
+// ==/UserScript==
+
+(function () {
+  "use strict";
+
+  const BANKER_API_BASE = "https://faction-bankers-request.onrender.com";
+
+  // Locked PDA/Torn header position for money / points / merits / gender row.
+  // Increase LEFT to move right. Decrease LEFT to move left.
+  // Increase TOP to move down. Decrease TOP to move up.
+  const COIN_LOCK_LEFT = 172;
+  const COIN_LOCK_TOP = 244;
+
+  const K_API_KEY = "fb_api_key_v1";
+  const K_OPEN = "fb_overlay_open_v1";
+  const K_SEEN_PENDING = "fb_seen_pending_ids_v1";
+  const FULL_BALANCE_NOTE = "__FULL_BALANCE_REQUEST__";
+
+  const APP = {
+    me: null,
+    requests: [],
+    pendingCount: 0,
+    busy: false,
+    open: false,
+    lastLoad: 0,
+    booted: false,
+  };
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+  function esc(v) {
+    return String(v ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function money(v) {
+    const n = Number(v || 0);
+    if (!Number.isFinite(n)) return "$0";
+    return "$" + Math.floor(n).toLocaleString();
+  }
+
+  function isTornPage() {
+    return location.hostname === "www.torn.com" || location.hostname === "torn.com";
+  }
+
+  function isFactionPage() {
+    return location.href.includes("factions.php");
+  }
+
+  function isOwnFactionPage() {
+    if (!isFactionPage()) return false;
+
+    const url = new URL(location.href);
+    const params = url.searchParams;
+
+    // Other faction pages normally have an ID/XID or profile/view style step.
+    if (params.has("ID") || params.has("id") || params.has("XID") || params.has("xid")) return false;
+
+    const step = String(params.get("step") || "").toLowerCase();
+    const type = String(params.get("type") || "").toLowerCase();
+
+    if (step.includes("profile")) return false;
+    if (step.includes("view")) return false;
+    if (type.includes("profile")) return false;
+
+    return true;
+  }
+
+  function gmRequest(method, path, body) {
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method,
+        url: BANKER_API_BASE.replace(/\/$/, "") + path,
+        headers: {
+          "Content-Type": "application/json",
+          "X-Torn-Key": GM_getValue(K_API_KEY, ""),
+        },
+        data: body ? JSON.stringify(body) : undefined,
+        timeout: 25000,
+        onload: (res) => {
+          let data = {};
+          try {
+            data = JSON.parse(res.responseText || "{}");
+          } catch {
+            data = { ok: false, error: res.responseText || "Bad JSON response" };
+          }
+
+          if (res.status >= 200 && res.status < 300) {
+            resolve(data);
+          } else {
+            reject(new Error(data.error || `HTTP ${res.status}`));
+          }
+        },
+        onerror: () => reject(new Error("Network error")),
+        ontimeout: () => reject(new Error("Request timed out")),
+      });
+    });
+  }
+
+  function ensureStyles() {
+    if ($("#fb-style")) return;
+
+    const style = document.createElement("style");
+    style.id = "fb-style";
+    style.textContent = `
+      #fb-bank-coin-clean {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 34px !important;
+        height: 28px !important;
+        margin-left: 6px !important;
+        border: 1px solid rgba(255,255,255,.12) !important;
+        border-radius: 9px !important;
+        background: transparent !important;
+        color: #ffd36a !important;
+        font-size: 20px !important;
+        line-height: 1 !important;
+        cursor: pointer !important;
+        user-select: none !important;
+        position: relative !important;
+        z-index: 20 !important;
+        box-shadow: none !important;
+      }
+
+      #fb-bank-coin-clean.fb-fixed-test {
+        position: fixed !important;
+        right: 8px !important;
+        bottom: 74px !important;
+        z-index: 100000 !important;
+        background: rgba(0,0,0,.55) !important;
+      }
+
+      #fb-bank-coin-clean.fb-fixed-header {
+        position: relative !important;
+        left: auto !important;
+        top: auto !important;
+        z-index: 20 !important;
+      }
+
+      .fb-coin-mount-row {
+        display: flex !important;
+        align-items: center !important;
+        flex-wrap: nowrap !important;
+        gap: 0 !important;
+        position: relative !important;
+      }
+
+      #fb-bank-coin-clean:hover {
+        opacity: .96 !important;
+        filter: drop-shadow(0 1px 2px rgba(0,0,0,.85)) saturate(1) brightness(1.02) !important;
+      }
+
+      #fb-bank-coin-clean.fb-alert {
+        opacity: 1 !important;
+        background: radial-gradient(circle, rgba(220,0,0,.58), rgba(130,0,0,.24) 62%, transparent 72%) !important;
+        border-radius: 50% !important;
+        box-shadow: 0 0 8px rgba(255,0,0,.68) !important;
+        filter: drop-shadow(0 1px 2px rgba(0,0,0,.9)) saturate(1.1) brightness(1.02) !important;
+      }
+
+      #fb-bank-coin-clean.fb-alert::after {
+        content: attr(data-count);
+        position: absolute;
+        top: -5px;
+        right: -6px;
+        min-width: 13px;
+        height: 13px;
+        padding: 0 3px;
+        border-radius: 999px;
+        background: #ff3131;
+        color: #fff;
+        font-size: 8px;
+        font-weight: 900;
+        line-height: 13px;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,.65);
+      }
+
+      #fb-built-in-box {
+        width: calc(100% - 18px);
+        box-sizing: border-box;
+        margin: 8px auto 10px auto;
+        padding: 8px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 211, 106, .35);
+        background: linear-gradient(180deg, rgba(25,25,25,.96), rgba(8,8,8,.96));
+        box-shadow: 0 4px 14px rgba(0,0,0,.45);
+        color: #eee;
+        position: relative;
+        z-index: 15;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      #fb-built-in-box.fb-built-alert {
+        border-color: rgba(255,80,80,.95);
+        box-shadow: 0 0 12px rgba(255,0,0,.45);
+      }
+
+      .fb-built-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 7px;
+      }
+
+      .fb-built-head b {
+        display: block;
+        color: #ffd36a;
+        font-size: 13px;
+        line-height: 1.1;
+      }
+
+      .fb-built-head span {
+        display: block;
+        color: #aaa;
+        font-size: 10px;
+        margin-top: 2px;
+      }
+
+      #fb-built-open {
+        border: 1px solid rgba(255,255,255,.14);
+        background: rgba(255,255,255,.08);
+        color: #fff;
+        border-radius: 8px;
+        padding: 5px 9px;
+        font-size: 11px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .fb-built-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+      #fb-built-amount,
+      #fb-built-note {
+        min-width: 0;
+        border: 1px solid rgba(255,255,255,.16);
+        background: rgba(0,0,0,.45);
+        color: #fff;
+        border-radius: 8px;
+        padding: 7px 8px;
+        font-size: 12px;
+        outline: none;
+      }
+
+      #fb-built-send {
+        border: 1px solid rgba(255,211,106,.45);
+        background: rgba(255,211,106,.16);
+        color: #ffd36a;
+        border-radius: 8px;
+        padding: 7px 9px;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      #fb-built-full,
+      #fb-full-request {
+        border: 1px solid rgba(110,170,255,.45);
+        background: rgba(45,105,180,.24);
+        color: #d8eaff;
+        border-radius: 8px;
+        padding: 7px 9px;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+
+      #fb-setup-button {
+        position: fixed !important;
+        right: 10px !important;
+        bottom: 86px !important;
+        z-index: 100000 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        padding: 7px 10px !important;
+        border: 1px solid rgba(255,211,106,.45) !important;
+        border-radius: 999px !important;
+        background: rgba(20,20,20,.88) !important;
+        color: #ffd36a !important;
+        font-size: 12px !important;
+        font-weight: 900 !important;
+        box-shadow: 0 6px 18px rgba(0,0,0,.55) !important;
+        cursor: pointer !important;
+      }
+
+      #fb-setup-button.fb-hide {
+        display: none !important;
+      }
+
+      #fb-overlay {
+        position: fixed;
+        top: 74px;
+        right: 12px;
+        width: min(470px, calc(100vw - 18px));
+        max-height: calc(100vh - 92px);
+        overflow: hidden;
+        display: none;
+        flex-direction: column;
+        background:
+          radial-gradient(circle at top left, rgba(255,211,106,.18), transparent 34%),
+          linear-gradient(180deg, #161616, #0d0d0d);
+        border: 1px solid rgba(255,211,106,.32);
+        border-radius: 16px;
+        box-shadow: 0 18px 50px rgba(0,0,0,.62);
+        color: #eee;
+        z-index: 99999;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      #fb-overlay.fb-show {
+        display: flex;
+      }
+
+      #fb-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 11px 12px;
+        border-bottom: 1px solid rgba(255,255,255,.1);
+        background: rgba(0,0,0,.22);
+      }
+
+      #fb-title strong {
+        font-size: 15px;
+        color: #ffd36a;
+      }
+
+      #fb-title span {
+        display: block;
+        font-size: 11px;
+        color: #aaa;
+        margin-top: 2px;
+      }
+
+      #fb-close {
+        border: 1px solid rgba(255,255,255,.18);
+        background: rgba(255,255,255,.06);
+        color: #fff;
+        border-radius: 10px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-weight: 900;
+      }
+
+      #fb-body {
+        overflow: auto;
+        padding: 12px;
+      }
+
+      .fb-box {
+        border: 1px solid rgba(255,255,255,.12);
+        background: rgba(255,255,255,.045);
+        border-radius: 14px;
+        padding: 11px;
+        margin-bottom: 10px;
+      }
+
+      .fb-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .fb-space {
+        justify-content: space-between;
+      }
+
+      .fb-label {
+        display: block;
+        font-size: 11px;
+        color: #aaa;
+        margin-bottom: 4px;
+      }
+
+      .fb-input,
+      .fb-textarea {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid rgba(255,255,255,.16);
+        border-radius: 10px;
+        background: rgba(0,0,0,.42);
+        color: #fff;
+        padding: 9px 10px;
+        outline: none;
+      }
+
+      .fb-textarea {
+        min-height: 66px;
+        resize: vertical;
+      }
+
+      .fb-btn {
+        border: 1px solid rgba(255,255,255,.16);
+        background: rgba(255,255,255,.08);
+        color: #fff;
+        border-radius: 10px;
+        padding: 8px 10px;
+        cursor: pointer;
+        font-weight: 800;
+      }
+
+      .fb-btn.gold {
+        background: rgba(255,211,106,.16);
+        border-color: rgba(255,211,106,.48);
+        color: #ffd36a;
+      }
+
+      .fb-btn.green {
+        background: rgba(22,145,72,.22);
+        border-color: rgba(70,220,125,.45);
+      }
+
+      .fb-btn.red {
+        background: rgba(165,35,35,.25);
+        border-color: rgba(255,85,85,.45);
+      }
+
+      .fb-btn.blue {
+        background: rgba(45,105,180,.24);
+        border-color: rgba(110,170,255,.45);
+      }
+
+      .fb-btn.pay {
+        background: rgba(255,211,106,.18);
+        border-color: rgba(255,211,106,.52);
+        color: #ffd36a;
+        text-decoration: none;
+      }
+
+      .fb-tabs {
+        display: flex;
+        gap: 6px;
+        padding: 8px 12px 0;
+        flex-wrap: wrap;
+      }
+
+      .fb-tab {
+        border: 1px solid rgba(255,255,255,.14);
+        background: rgba(255,255,255,.055);
+        color: #ddd;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        cursor: pointer;
+        font-weight: 900;
+      }
+
+      .fb-tab.active {
+        color: #ffd36a;
+        border-color: rgba(255,211,106,.45);
+        background: rgba(255,211,106,.12);
+      }
+
+      .fb-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,.14);
+        background: rgba(255,255,255,.065);
+        color: #ddd;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .fb-pill.pending {
+        color: #ffd36a;
+        border-color: rgba(255,211,106,.35);
+      }
+
+      .fb-pill.approved {
+        color: #7dff9d;
+        border-color: rgba(90,220,120,.35);
+      }
+
+      .fb-pill.denied {
+        color: #ff8585;
+        border-color: rgba(255,85,85,.35);
+      }
+
+      .fb-pill.paid {
+        color: #92c8ff;
+        border-color: rgba(120,180,255,.35);
+      }
+
+      .fb-small {
+        font-size: 11px;
+        color: #aaa;
+      }
+
+      .fb-muted {
+        color: #aaa;
+      }
+
+      .fb-error {
+        color: #ff8d8d;
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .fb-success {
+        color: #8dffac;
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .fb-request-title {
+        font-size: 13px;
+        font-weight: 900;
+        color: #fff;
+      }
+
+      .fb-request-meta {
+        font-size: 11px;
+        color: #aaa;
+        margin-top: 3px;
+      }
+
+      .fb-request-note {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #ddd;
+        line-height: 1.35;
+        white-space: pre-wrap;
+      }
+
+      @media (max-width: 520px) {
+  
+      #fb-setup-button {
+        position: fixed !important;
+        right: 10px !important;
+        bottom: 86px !important;
+        z-index: 100000 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        padding: 7px 10px !important;
+        border: 1px solid rgba(255,211,106,.45) !important;
+        border-radius: 999px !important;
+        background: rgba(20,20,20,.88) !important;
+        color: #ffd36a !important;
+        font-size: 12px !important;
+        font-weight: 900 !important;
+        box-shadow: 0 6px 18px rgba(0,0,0,.55) !important;
+        cursor: pointer !important;
+      }
+
+      #fb-setup-button.fb-hide {
+        display: none !important;
+      }
+
+      #fb-overlay {
+          top: 62px;
+          right: 6px;
+          left: 6px;
+          width: auto;
+          max-height: calc(100vh - 72px);
+          border-radius: 14px;
+        }
+
+        #fb-body {
+          padding: 10px;
+        }
+
+        #fb-built-in-box {
+          width: calc(100% - 8px);
+          margin: 6px auto 8px auto;
+          padding: 7px;
+        }
+
+        .fb-built-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+
+        #fb-built-amount,
+        #fb-built-send {
+          width: 100%;
+          box-sizing: border-box;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function getCleanText(el) {
+    return String(el?.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  function looksLikeMoneyPointsMeritsRow(el) {
+    const text = getCleanText(el);
+    const rect = el.getBoundingClientRect();
+    const cls = String(el.className || "");
+
+    if (!rect || rect.width < 250 || rect.height < 20 || rect.height > 48) return false;
+
+    // From your debug:
+    // #7: class swiperWrapper___sfn5X, text "Money:$2.7MPoints:17Merits:2"
+    // #6: upper row has Energy/Nerve/Happy/Life/Chain.
+    const hasMoneyWords = text.includes("Money:") && text.includes("Points:") && text.includes("Merits:");
+    const hasMoneySymbols = text.includes("$") && (text.includes("P") || text.includes("Points")) && (text.includes("Merits") || text.includes("★") || text.includes("⭐"));
+
+    const isKnownTornResourceClass =
+      cls.includes("swiperWrapper") ||
+      cls.includes("user-information-mobile") ||
+      cls.includes("userInformation") ||
+      cls.includes("user-info");
+
+    return (hasMoneyWords || hasMoneySymbols) && (isKnownTornResourceClass || rect.top > 120);
+  }
+
+  function findTornResourceRow() {
+    // First use the exact mobile resource row found by debug.
+    const exact = Array.from(document.querySelectorAll("div")).find(looksLikeMoneyPointsMeritsRow);
+    if (exact) return exact;
+
+    // Then search all rows and score the money/points/merits row.
+    const candidates = Array.from(document.querySelectorAll("div, ul, nav, section")).filter((el) => {
+      const rect = el.getBoundingClientRect();
+      if (!rect || rect.width < 250 || rect.height < 20 || rect.height > 55) return false;
+
+      const text = getCleanText(el);
+      return text.includes("$") && (text.includes("Points") || /\bP\b/.test(text)) && (text.includes("Merits") || text.includes("★") || text.includes("⭐"));
+    });
+
+    if (candidates.length) {
+      candidates.sort((a, b) => {
+        const ar = a.getBoundingClientRect();
+        const br = b.getBoundingClientRect();
+        const at = getCleanText(a);
+        const bt = getCleanText(b);
+
+        const aScore =
+          (at.includes("Money:") ? 50 : 0) +
+          (at.includes("Points:") ? 40 : 0) +
+          (at.includes("Merits:") ? 40 : 0) +
+          (String(a.className || "").includes("swiperWrapper") ? 30 : 0) -
+          Math.abs(ar.height - 30);
+
+        const bScore =
+          (bt.includes("Money:") ? 50 : 0) +
+          (bt.includes("Points:") ? 40 : 0) +
+          (bt.includes("Merits:") ? 40 : 0) +
+          (String(b.className || "").includes("swiperWrapper") ? 30 : 0) -
+          Math.abs(br.height - 30);
+
+        return bScore - aScore;
+      });
+
+      return candidates[0];
+    }
+
+    return null;
+  }
+
+  function findGenderInsertTarget(row) {
+    if (!row) return null;
+
+    const all = Array.from(row.querySelectorAll("a, div, span, li, i, img, button"));
+
+    // Best: exact gender icon.
+    let target = all.find((el) => {
+      const text = getCleanText(el);
+      const cls = String(el.className || "").toLowerCase();
+      const title = String(el.getAttribute("title") || "").toLowerCase();
+      const alt = String(el.getAttribute("alt") || "").toLowerCase();
+
+      return text === "♂" || text === "♀" || cls.includes("gender") || title.includes("gender") || alt.includes("gender");
+    });
+
+    if (target) return target;
+
+    // Fallback: find the merit/star icon, then coin goes after it, which is beside the gender area on PDA.
+    target = all.find((el) => {
+      const text = getCleanText(el);
+      const cls = String(el.className || "").toLowerCase();
+      const title = String(el.getAttribute("title") || "").toLowerCase();
+      const alt = String(el.getAttribute("alt") || "").toLowerCase();
+
+      return text.includes("★") || text.includes("⭐") || cls.includes("merit") || title.includes("merit") || alt.includes("merit");
+    });
+
+    if (target) return target;
+
+    return null;
+  }
+
+  function mountCoin() {
+    document.querySelectorAll("#fb-bank-coin").forEach((oldCoin) => {
+      oldCoin.style.display = "none";
+      oldCoin.remove();
+    });
+
+    let coin = $("#fb-bank-coin-clean");
+
+    if (!coin) {
+      coin = document.createElement("button");
+      coin.id = "fb-bank-coin-clean";
+      coin.type = "button";
+      coin.title = "Faction Bankers";
+      coin.textContent = "🪙";
+      coin.setAttribute("data-count", "0");
+      coin.addEventListener("click", openBankerBoard);
+    }
+
+    coin.classList.remove("fb-fixed-test", "fb-fixed-header");
+    coin.classList.add("fb-gender-lock");
+
+    const row = findTornResourceRow();
+
+    if (!GM_getValue(K_API_KEY, "")) {
+      coin.classList.add("fb-banker-visible");
+    }
+
+    if (row) {
+      row.classList.add("fb-coin-mount-row");
+
+      // Mount inside the real money/points/merits row, but lock it visually beside gender
+      // instead of appending it to the far end of the row.
+      if (coin.parentElement !== row) {
+        row.appendChild(coin);
+      }
+    } else if (coin.parentElement !== document.body) {
+      // Last-resort tiny fixed button so it never disappears during testing.
+      coin.classList.remove("fb-gender-lock");
+      coin.classList.add("fb-fixed-test");
+      document.body.appendChild(coin);
+    }
+  }
+
+  function findFactionBuiltInMount() {
+    const exactFactionHeader = Array.from(document.querySelectorAll("div, h1, h2, h3, span"))
+      .find((el) => String(el.textContent || "").trim().toLowerCase() === "faction");
+
+    if (exactFactionHeader) {
+      let p = exactFactionHeader.parentElement;
+      for (let i = 0; i < 4 && p; i += 1) {
+        if (p.offsetWidth > 250) return p;
+        p = p.parentElement;
+      }
+    }
+
+    const candidates = [
+      ".faction-info-wrap",
+      ".faction-info",
+      ".faction-tabs",
+      ".content-title",
+      "#factions",
+      ".factions-wrap",
+      ".faction-page",
+      ".content-wrapper",
+      ".content",
+      "main",
+    ];
+
+    for (const sel of candidates) {
+      const el = document.querySelector(sel);
+      if (el) return el;
+    }
+
+    return document.body;
+  }
+
+  function mountBuiltInBankerBox() {
+    if (!isOwnFactionPage()) {
+      const oldBox = $("#fb-built-in-box");
+      if (oldBox) oldBox.remove();
+      return;
+    }
+    if ($("#fb-built-in-box")) return;
+
+    const box = document.createElement("div");
+    box.id = "fb-built-in-box";
+    box.innerHTML = `
+      <div class="fb-built-head">
+        <div>
+          <b>🪙 Faction Bankers</b>
+          <span id="fb-built-status">Request faction vault money</span>
+        </div>
+        <button id="fb-built-open" type="button">Open</button>
+      </div>
+
+      <div class="fb-built-grid">
+        <input id="fb-built-amount" inputmode="numeric" placeholder="Amount needed">
+        <button id="fb-built-full" type="button">Request Full Balance</button>
+        <button id="fb-built-send" type="button">Request Amount</button>
+      </div>
+    `;
+
+    const tabBar =
+      document.querySelector(".faction-tabs") ||
+      document.querySelector("[class*='faction'] [class*='tabs']") ||
+      document.querySelector("[class*='tabs']");
+
+    if (tabBar && tabBar.parentElement) {
+      tabBar.parentElement.insertBefore(box, tabBar.nextSibling);
+    } else {
+      const mount = findFactionBuiltInMount();
+
+      const warBox = Array.from(mount.querySelectorAll("div")).find((el) =>
+        String(el.textContent || "").toLowerCase().includes("your faction is not in a war")
+      );
+
+      if (warBox?.parentElement) {
+        warBox.parentElement.insertBefore(box, warBox);
+      } else {
+        mount.insertBefore(box, mount.firstChild);
+      }
+    }
+
+    $("#fb-built-open")?.addEventListener("click", openOverlay);
+    $("#fb-built-send")?.addEventListener("click", submitBuiltInRequest);
+    $("#fb-built-full")?.addEventListener("click", submitFullBalanceRequest);
+  }
+
+  function ensureSetupButton() {
+    if ($("#fb-setup-button")) return;
+
+    const btn = document.createElement("button");
+    btn.id = "fb-setup-button";
+    btn.type = "button";
+    btn.textContent = "🪙 Setup";
+    btn.title = "Open Faction Bankers settings";
+    btn.addEventListener("click", () => {
+      openOverlay();
+      setTimeout(() => {
+        const settingsTab = document.querySelector('.fb-tab[data-tab="settings"]');
+        if (settingsTab) settingsTab.click();
+      }, 150);
+    });
+
+    document.body.appendChild(btn);
+
+    if (GM_getValue(K_API_KEY, "")) {
+      btn.classList.add("fb-hide");
+    }
+  }
+
+  function ensureOverlay() {
+    if ($("#fb-overlay")) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "fb-overlay";
+    overlay.innerHTML = `
+      <div id="fb-head">
+        <div id="fb-title">
+          <strong>🪙 Faction Bankers</strong>
+          <span id="fb-subtitle">Faction vault request board</span>
+        </div>
+        <button id="fb-close" type="button">✕</button>
+      </div>
+
+      <div class="fb-tabs">
+        <button class="fb-tab active" data-tab="request" type="button">Request</button>
+        <button class="fb-tab" data-tab="my" type="button">My Requests</button>
+        <button class="fb-tab" data-tab="banker" type="button">Banker</button>
+        <button class="fb-tab" data-tab="settings" type="button">Settings</button>
+      </div>
+
+      <div id="fb-body"></div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    $("#fb-close").addEventListener("click", closeOverlay);
+
+    $$(".fb-tab", overlay).forEach((btn) => {
+      btn.addEventListener("click", () => {
+        $$(".fb-tab", overlay).forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        renderBody(btn.dataset.tab);
+      });
+    });
+  }
+
+  function openOverlay() {
+    APP.open = true;
+    GM_setValue(K_OPEN, true);
+    ensureOverlay();
+    $("#fb-overlay").classList.add("fb-show");
+    refreshAll(true);
+  }
+
+  function closeOverlay() {
+    APP.open = false;
+    GM_setValue(K_OPEN, false);
+    const ov = $("#fb-overlay");
+    if (ov) ov.classList.remove("fb-show");
+  }
+
+  function toggleOverlay() {
+    const ov = $("#fb-overlay");
+    if (ov && ov.classList.contains("fb-show")) closeOverlay();
+    else openOverlay();
+  }
+
+  function openBankerBoard() {
+    openOverlay();
+
+    setTimeout(() => {
+      const tabName = GM_getValue(K_API_KEY, "") ? "banker" : "settings";
+      const tab = document.querySelector(`.fb-tab[data-tab="${tabName}"]`);
+      if (tab) tab.click();
+    }, 150);
+  }
+
+  function activeTab() {
+    const btn = $(".fb-tab.active");
+    return btn?.dataset?.tab || "request";
+  }
+
+  function setCoinAlert(count) {
+    const coin = $("#fb-bank-coin-clean");
+    const setupBtn = $("#fb-setup-button");
+    const n = Number(count || 0);
+    const hasKey = !!GM_getValue(K_API_KEY, "");
+    const canBank = !!(APP.me?.is_banker || APP.me?.is_admin);
+    APP.pendingCount = n;
+
+    try {
+      if (window.__FRIES_HUB_BANK_ALERT__ && typeof window.__FRIES_HUB_BANK_ALERT__.set === 'function') {
+        window.__FRIES_HUB_BANK_ALERT__.set(n, canBank);
+      }
+    } catch (_) {}
+
+    if (coin) {
+      coin.setAttribute("data-count", String(n > 99 ? "99+" : n));
+
+      // Show coin when:
+      // 1) no key yet, so user can open settings/login
+      // 2) user is banker/admin
+      // 3) there are pending requests
+      if (!hasKey || canBank || n > 0) {
+        coin.classList.add("fb-banker-visible");
+      } else {
+        coin.classList.remove("fb-banker-visible");
+      }
+
+      if (canBank && n > 0) {
+        coin.classList.add("fb-alert");
+        coin.title = `${n} pending faction bank request${n === 1 ? "" : "s"} — tap to pay members`;
+      } else {
+        coin.classList.remove("fb-alert");
+        coin.title = hasKey ? "Faction Bankers" : "Faction Bankers setup";
+      }
+    }
+
+    if (setupBtn) {
+      if (hasKey) setupBtn.classList.add("fb-hide");
+      else setupBtn.classList.remove("fb-hide");
+    }
+
+    const builtBox = $("#fb-built-in-box");
+    if (builtBox) {
+      if (canBank && n > 0) {
+        builtBox.classList.add("fb-built-alert");
+        const status = $("#fb-built-status");
+        if (status) status.textContent = `${n} pending banker request${n === 1 ? "" : "s"}`;
+      } else {
+        builtBox.classList.remove("fb-built-alert");
+      }
+    }
+  }
+
+  function setBody(html) {
+    const body = $("#fb-body");
+    if (body) body.innerHTML = html;
+  }
+
+  function statusPill(status) {
+    const s = String(status || "pending").toLowerCase();
+    const label = {
+      pending: "Pending",
+      approved: "Approved",
+      denied: "Denied",
+      paid: "Complete",
+      cancelled: "Cancelled",
+    }[s] || s;
+
+    return `<span class="fb-pill ${esc(s)}">${esc(label)}</span>`;
+  }
+
+  function renderBody(tab = activeTab()) {
+    if (!GM_getValue(K_API_KEY, "")) {
+      renderSettings("Add your Torn API key first.");
+      return;
+    }
+
+    if (!APP.me) {
+      setBody(`<div class="fb-box"><div class="fb-muted">Loading account...</div></div>`);
+      return;
+    }
+
+    if (tab === "request") renderRequestTab();
+    if (tab === "my") renderMyTab();
+    if (tab === "banker") renderBankerTab();
+    if (tab === "settings") renderSettings();
+  }
+
+  function renderRequestTab(msg = "") {
+    setBody(`
+      ${msg ? `<div class="fb-box">${msg}</div>` : ""}
+
+      <div class="fb-box">
+        <div class="fb-row fb-space">
+          <div>
+            <div class="fb-request-title">Request money from faction bank</div>
+            <div class="fb-small">Logged in as ${esc(APP.me?.name || "Unknown")} ${APP.me?.faction_name ? `• ${esc(APP.me.faction_name)}` : ""}</div>
+          </div>
+          <span class="fb-pill">Member</span>
+        </div>
+      </div>
+
+      <div class="fb-box">
+        <label class="fb-label">Amount requested</label>
+        <input id="fb-amount" class="fb-input" inputmode="numeric" placeholder="Example: 25000000">
+
+        <div class="fb-row" style="margin-top:10px;">
+          <button id="fb-full-request" class="fb-btn blue" type="button">Request Full Balance</button>
+        </div>
+
+        <div class="fb-row" style="margin-top:10px;">
+          <button id="fb-submit-request" class="fb-btn gold" type="button">Send Amount Request</button>
+          <button id="fb-refresh" class="fb-btn" type="button">Refresh</button>
+        </div>
+
+        <div class="fb-small" style="margin-top:8px;">
+          This sends a request to faction bankers. A banker still pays from the faction vault manually.
+        </div>
+      </div>
+    `);
+
+    $("#fb-submit-request")?.addEventListener("click", submitRequest);
+    $("#fb-full-request")?.addEventListener("click", submitFullBalanceRequest);
+    $("#fb-refresh")?.addEventListener("click", () => refreshAll(true));
+  }
+
+  function renderMyTab() {
+    const mine = APP.requests.filter((r) => String(r.requester_id) === String(APP.me?.player_id));
+
+    const cards = mine.length
+      ? mine.map(requestCard).join("")
+      : `<div class="fb-box"><div class="fb-muted">No requests yet.</div></div>`;
+
+    setBody(`
+      <div class="fb-box">
+        <div class="fb-row fb-space">
+          <div>
+            <div class="fb-request-title">My Requests</div>
+            <div class="fb-small">Track your faction bank requests here.</div>
+          </div>
+          <button id="fb-refresh-my" class="fb-btn" type="button">Refresh</button>
+        </div>
+      </div>
+      ${cards}
+    `);
+
+    $("#fb-refresh-my")?.addEventListener("click", () => refreshAll(true));
+  }
+
+  function renderBankerTab() {
+    if (!APP.me?.is_banker) {
+      setBody(`
+        <div class="fb-box">
+          <div class="fb-request-title">Banker Access</div>
+          <div class="fb-error" style="margin-top:6px;">
+            You are not listed as a banker for this app.
+          </div>
+          <div class="fb-small" style="margin-top:8px;">
+            Banker access is controlled by the backend BANKER_IDS setting.
+          </div>
+        </div>
+      `);
+      return;
+    }
+
+    const pending = APP.requests.filter((r) => String(r.status || "pending").toLowerCase() === "pending");
+    const others = APP.requests.filter((r) => String(r.status || "pending").toLowerCase() !== "pending");
+
+    const cards = [
+      pending.length
+        ? `<div class="fb-box"><strong style="color:#ffd36a;">Pending Requests</strong></div>${pending.map(requestCard).join("")}`
+        : `<div class="fb-box"><div class="fb-muted">No pending requests.</div></div>`,
+      others.length
+        ? `<div class="fb-box"><strong>Recent History</strong></div>${others.slice(0, 20).map(requestCard).join("")}`
+        : "",
+    ].join("");
+
+    setBody(`
+      <div class="fb-box">
+        <div class="fb-row fb-space">
+          <div>
+            <div class="fb-request-title">Banker Board</div>
+            <div class="fb-small">${pending.length} pending request${pending.length === 1 ? "" : "s"}</div>
+          </div>
+          <button id="fb-refresh-banker" class="fb-btn" type="button">Refresh</button>
+        </div>
+      </div>
+      ${cards}
+    `);
+
+    $("#fb-refresh-banker")?.addEventListener("click", () => refreshAll(true));
+
+    $$("[data-fb-action]").forEach((btn) => {
+      btn.addEventListener("click", () => bankerAction(btn.dataset.id, btn.dataset.fbAction));
+    });
+  }
+
+  function requestCard(r) {
+    const id = esc(r.id);
+    const status = String(r.status || "pending").toLowerCase();
+    const isBanker = !!APP.me?.is_banker;
+
+    const created = r.created_at ? esc(r.created_at) : "";
+    const requester = esc(r.requester_name || `User ${r.requester_id || ""}`);
+    const handledBy = r.handled_by_name ? `<div class="fb-small">Handled by: ${esc(r.handled_by_name)}</div>` : "";
+
+    let actions = "";
+
+    if (isBanker && status === "pending") {
+      actions = `
+        <div class="fb-row" style="margin-top:10px;">
+          <a class="fb-btn pay" href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(String(r.requester_id || ""))}" target="_blank" rel="noopener">Open Member</a>
+          <button class="fb-btn green" data-id="${id}" data-fb-action="approve" type="button">Approve</button>
+          <button class="fb-btn blue" data-id="${id}" data-fb-action="paid" type="button">Mark Complete</button>
+          <button class="fb-btn red" data-id="${id}" data-fb-action="deny" type="button">Deny</button>
+        </div>
+      `;
+    }
+
+    if (isBanker && status === "approved") {
+      actions = `
+        <div class="fb-row" style="margin-top:10px;">
+          <a class="fb-btn pay" href="https://www.torn.com/profiles.php?XID=${encodeURIComponent(String(r.requester_id || ""))}" target="_blank" rel="noopener">Open Member</a>
+          <button class="fb-btn blue" data-id="${id}" data-fb-action="paid" type="button">Mark Complete</button>
+          <button class="fb-btn red" data-id="${id}" data-fb-action="deny" type="button">Deny</button>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="fb-box">
+        <div class="fb-row fb-space">
+          <div>
+            <div class="fb-request-title">${requester} requested ${String(r.note || "") === FULL_BALANCE_NOTE ? "Full Balance" : money(r.amount)}</div>
+            <div class="fb-request-meta">Request #${id}${created ? ` • ${created}` : ""}</div>
+          </div>
+          ${statusPill(status)}
+        </div>
+
+        ${String(r.note || "") === FULL_BALANCE_NOTE ? `<div class="fb-request-note">Full balance requested.</div>` : ""}
+
+        ${handledBy}
+        ${r.bank_note ? `<div class="fb-small">Bank note: ${esc(r.bank_note)}</div>` : ""}
+
+        ${actions}
+      </div>
+    `;
+  }
+
+  function renderSettings(msg = "") {
+    const key = GM_getValue(K_API_KEY, "");
+
+    setBody(`
+      ${msg ? `<div class="fb-box"><div class="fb-error">${esc(msg)}</div></div>` : ""}
+
+      <div class="fb-box">
+        <div class="fb-request-title">Settings</div>
+        <div class="fb-small" style="margin-top:4px;">
+          Save your Torn API key so the banker app can verify your faction/account. After saving, tap Test Login.
+        </div>
+      </div>
+
+      <div class="fb-box">
+        <label class="fb-label">Torn API key</label>
+        <input id="fb-api-key" class="fb-input" value="${esc(key)}" placeholder="Paste Torn API key">
+
+        <div class="fb-row" style="margin-top:10px;">
+          <button id="fb-save-key" class="fb-btn gold" type="button">Save Key</button>
+          <button id="fb-test-login" class="fb-btn" type="button">Test Login</button>
+          <button id="fb-enable-notify" class="fb-btn blue" type="button">Enable In-App Ping</button>
+        </div>
+      </div>
+
+      <div class="fb-box">
+        <div class="fb-small">
+          Backend URL:
+          <br>
+          <span style="color:#ffd36a;">${esc(BANKER_API_BASE)}</span>
+        </div>
+      </div>
+    `);
+
+    $("#fb-save-key")?.addEventListener("click", () => {
+      const keyInput = $("#fb-api-key")?.value?.trim() || "";
+      GM_setValue(K_API_KEY, keyInput);
+      renderSettings("Saved. Tap Test Login.");
+    });
+
+    $("#fb-test-login")?.addEventListener("click", () => refreshAll(true));
+    $("#fb-enable-notify")?.addEventListener("click", requestNotifyPermission);
+  }
+
+  async function submitFullBalanceRequest() {
+    if (APP.busy) return;
+
+    const status = $("#fb-built-status");
+
+    if (!GM_getValue(K_API_KEY, "")) {
+      if (status) status.textContent = "Save your API key in settings first";
+      openOverlay();
+      return;
+    }
+
+    APP.busy = true;
+    if (status) status.textContent = "Sending full balance request...";
+
+    try {
+      await gmRequest("POST", "/api/banker/requests", {
+        amount: 1,
+        note: FULL_BALANCE_NOTE,
+      });
+
+      if (status) status.textContent = "Full balance request sent to bankers";
+      await refreshAll(true);
+
+      if (APP.open) {
+        renderRequestTab(`<div class="fb-success">Full balance request sent to faction bankers.</div>`);
+      }
+    } catch (err) {
+      if (status) status.textContent = err.message || "Request failed";
+      if (APP.open) {
+        renderRequestTab(`<div class="fb-error">${esc(err.message || err)}</div>`);
+      }
+    } finally {
+      APP.busy = false;
+    }
+  }
+
+  async function submitBuiltInRequest() {
+    if (APP.busy) return;
+
+    const amountRaw = ($("#fb-built-amount")?.value || "").replace(/[^\d]/g, "");
+    const amount = Number(amountRaw);
+    const note = "";
+    const status = $("#fb-built-status");
+
+    if (!GM_getValue(K_API_KEY, "")) {
+      if (status) status.textContent = "Save your API key in settings first";
+      openOverlay();
+      return;
+    }
+
+    if (!amount || amount < 1) {
+      if (status) status.textContent = "Enter a valid amount";
+      return;
+    }
+
+    APP.busy = true;
+    if (status) status.textContent = "Sending request...";
+
+    try {
+      await gmRequest("POST", "/api/banker/requests", { amount, note });
+      $("#fb-built-amount").value = "";
+      if (status) status.textContent = "Request sent to bankers";
+      await refreshAll(true);
+    } catch (err) {
+      if (status) status.textContent = err.message || "Request failed";
+    } finally {
+      APP.busy = false;
+    }
+  }
+
+  async function submitRequest() {
+    if (APP.busy) return;
+
+    const amountRaw = ($("#fb-amount")?.value || "").replace(/[^\d]/g, "");
+    const amount = Number(amountRaw);
+    const note = "";
+
+    if (!amount || amount < 1) {
+      renderRequestTab(`<div class="fb-error">Enter a valid amount.</div>`);
+      return;
+    }
+
+    APP.busy = true;
+    renderRequestTab(`<div class="fb-muted">Sending request...</div>`);
+
+    try {
+      await gmRequest("POST", "/api/banker/requests", { amount, note });
+      await refreshAll(true);
+      renderRequestTab(`<div class="fb-success">Amount request sent to faction bankers.</div>`);
+    } catch (err) {
+      renderRequestTab(`<div class="fb-error">${esc(err.message || err)}</div>`);
+    } finally {
+      APP.busy = false;
+    }
+  }
+
+  async function bankerAction(id, action) {
+    if (APP.busy || !id || !action) return;
+
+    const note = action === "deny"
+      ? prompt("Reason for denying request?") || ""
+      : "";
+
+    APP.busy = true;
+
+    try {
+      await gmRequest("POST", `/api/banker/requests/${encodeURIComponent(id)}/${encodeURIComponent(action)}`, {
+        note,
+      });
+      await refreshAll(true);
+      renderBankerTab();
+    } catch (err) {
+      setBody(`
+        <div class="fb-box">
+          <div class="fb-error">${esc(err.message || err)}</div>
+        </div>
+      `);
+    } finally {
+      APP.busy = false;
+    }
+  }
+
+
+  function getSeenPendingIds() {
+    try {
+      const raw = GM_getValue(K_SEEN_PENDING, "[]");
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr.map(String) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveSeenPendingIds(ids) {
+    GM_setValue(K_SEEN_PENDING, JSON.stringify(Array.from(new Set(ids.map(String))).slice(-100)));
+  }
+
+  function requestNotifyPermission() {
+    if (!("Notification" in window)) {
+      GM_setValue("fb_in_app_ping_enabled_v1", true);
+      alert("PDA/browser notifications are not supported here. In-app banker ping is enabled instead: the 🪙 coin and banker box will turn red when requests are pending.");
+      return;
+    }
+
+    Notification.requestPermission().then((permission) => {
+      if (permission === "granted") {
+        GM_setValue("fb_in_app_ping_enabled_v1", true);
+        alert("Banker notifications enabled.");
+      } else {
+        GM_setValue("fb_in_app_ping_enabled_v1", true);
+        alert("Browser notifications were not allowed. In-app banker ping is enabled instead: the 🪙 coin and banker box will turn red when requests are pending.");
+      }
+    });
+  }
+
+  function notifyBankerForNewPending(pendingItems) {
+    if (!APP.me?.is_banker && !APP.me?.is_admin) return;
+
+    const seen = getSeenPendingIds();
+    const seenSet = new Set(seen);
+    const fresh = pendingItems.filter((r) => !seenSet.has(String(r.id)));
+
+    if (!fresh.length) return;
+
+    // PDA-friendly in-app ping: vibrate where supported, while the red coin/request box is the visual ping.
+    try {
+      if (navigator.vibrate) navigator.vibrate([180, 80, 180]);
+    } catch {
+      // Ignore vibration errors.
+    }
+
+    if ("Notification" in window && Notification.permission === "granted") {
+      for (const req of fresh.slice(0, 3)) {
+        const title = "🪙 New Faction Bank Request";
+        const body = `${req.requester_name || "Member"} requested ${String(req.note || "") === FULL_BALANCE_NOTE ? "Full Balance" : money(req.amount)}`;
+
+        try {
+          const n = new Notification(title, {
+            body,
+            tag: `faction-bank-request-${req.id}`,
+            silent: false,
+          });
+
+          n.onclick = () => {
+            window.focus();
+            openBankerBoard();
+          };
+        } catch {
+          // Ignore notification errors.
+        }
+      }
+    }
+
+    saveSeenPendingIds([...seen, ...fresh.map((r) => String(r.id))]);
+  }
+
+  async function refreshAll(force = false) {
+    const key = GM_getValue(K_API_KEY, "");
+    if (!key) {
+      setCoinAlert(0);
+      if (APP.open) renderSettings("Add your Torn API key first.");
+      return;
+    }
+
+    if (!force && Date.now() - APP.lastLoad < 12000) return;
+
+    APP.lastLoad = Date.now();
+
+    try {
+      const me = await gmRequest("GET", "/api/banker/me");
+      APP.me = me;
+
+      const list = await gmRequest("GET", "/api/banker/requests");
+      APP.requests = Array.isArray(list.items) ? list.items : [];
+
+      const pendingItems = APP.requests.filter((r) => String(r.status || "pending").toLowerCase() === "pending");
+      const pending = pendingItems.length;
+
+      setCoinAlert(pending);
+      notifyBankerForNewPending(pendingItems);
+
+      if (APP.open) renderBody(activeTab());
+    } catch (err) {
+      setCoinAlert(0);
+
+      if (APP.open) {
+        setBody(`
+          <div class="fb-box">
+            <div class="fb-error">${esc(err.message || err)}</div>
+            <div class="fb-small" style="margin-top:8px;">
+              Check your API key and backend URL.
+            </div>
+          </div>
+        `);
+      }
+    }
+  }
+
+
+  window.__FRIES_BANKERS_BRIDGE__ = {
+    open: function () { ensureStyles(); ensureOverlay(); openOverlay(); },
+    close: function () { closeOverlay(); },
+    refresh: function () { try { refreshAll(true); } catch (_) {} }
+  };
+
+  function boot() {
+    if (!isTornPage()) return;
+
+    ensureStyles();
+    ensureOverlay();
+
+    APP.booted = true;
+
+    if (GM_getValue(K_OPEN, false)) openOverlay();
+
+    setTimeout(() => refreshAll(true), 1800);
+
+    setInterval(() => {
+      if (GM_getValue(K_API_KEY, "")) {
+        refreshAll(false);
+      }
+    }, 15000);
+  }
+
+  function startWhenReady() {
+    if (!isTornPage()) return;
+
+    boot();
+
+    const obs = new MutationObserver(() => {
+      if (!isTornPage()) return;
+      ensureStyles();
+      ensureOverlay();
+    });
+
+    obs.observe(document.documentElement || document.body, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startWhenReady, { once: true });
+  } else {
+    startWhenReady();
+  }
+
+  let lastUrl = location.href;
+  setInterval(() => {
+    if (location.href !== lastUrl) {
+      lastUrl = location.href;
+
+      setTimeout(() => {
+        if (isTornPage()) {
+          refreshAll(true);
+        }
+      }, 800);
+    }
+  }, 1000);
 })();

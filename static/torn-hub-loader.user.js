@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.6.6
-// @description  PDA friendly Torn app hub launcher with updated bank request factions, War Hub, Insurance, Giveaway, Company Hub, and Rolling Lottery.
+// @version      0.6.8
+// @description  PDA friendly Torn app hub launcher with bank request alerts, reset tools, War Hub, Insurance, Giveaway, T.S.E, protected Company tools, and Rolling Lottery.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -49,7 +49,41 @@
     hubOpenSince: 0,
     manualCloseLockUntil: 0,
     intentionalClose: false,
+    hubViewer: { user_id: '', name: '', is_admin: false },
   };
+
+  const TSE_ALLOWED_USER_IDS = ['1617888', '3679030'];
+  const TSE_ALLOWED_NAMES = ['bob_the_ninja', 'fries91'];
+
+  function setHubViewerInfo(info) {
+    try {
+      const next = info && typeof info === 'object' ? info : {};
+      const userId = String(next.user_id || next.player_id || next.id || '').trim();
+      const name = String(next.name || next.user_name || next.username || '').trim();
+      const isAdmin = !!next.is_admin || userId === '3679030' || name.toLowerCase() === 'fries91';
+      if (userId || name || isAdmin) {
+        state.hubViewer = { user_id: userId, name: name, is_admin: isAdmin };
+        renderHubCards();
+      }
+    } catch (_) {}
+  }
+
+  window.__FRIES_HUB_SET_VIEWER__ = setHubViewerInfo;
+
+  function isTseAllowedViewer() {
+    const viewer = state.hubViewer || {};
+    const id = String(viewer.user_id || '').trim();
+    const name = String(viewer.name || '').trim().toLowerCase();
+    return !!(viewer.is_admin || TSE_ALLOWED_USER_IDS.includes(id) || TSE_ALLOWED_NAMES.includes(name));
+  }
+
+  function appIsVisible(app) {
+    if (!app) return false;
+    if (typeof app.visible === 'function') {
+      try { return !!app.visible(); } catch (_) { return false; }
+    }
+    return true;
+  }
 
   function readBool(key, fallback) {
     try {
@@ -506,6 +540,56 @@
     `);
   }
 
+
+  function resetHubSavedLayout() {
+    const keysToClear = [
+      'torn_hub_open',
+      'torn_hub_minimize_on_open',
+      'torn_hub_enabled_apps',
+      'warhub_open_v3',
+      'warhub_tab_v3',
+      'warhub_shield_pos_v6',
+      'warhub_overlay_pos_v3',
+      'warhub_overlay_scroll_v3',
+      'giveaway_overlay_open',
+      'giveaway_shield_pos',
+      'giveaway_overlay_pos',
+      'giveaway_active_tab',
+      'tse_hq_ui_v1',
+      'fb_overlay_open_v1'
+    ];
+
+    keysToClear.forEach((key) => {
+      try { GM_deleteValue(key); } catch (_) {}
+    });
+
+    state.hubOpen = false;
+    state.lastTargetKey = '';
+    state.openApps.clear();
+
+    document.querySelectorAll('.thub-window').forEach((el) => {
+      try { el.remove(); } catch (_) {}
+    });
+
+    const hubOverlay = document.getElementById(HUB_OVERLAY_ID);
+    if (hubOverlay) hubOverlay.classList.remove('open');
+
+    const warOverlay = document.getElementById('warhub-overlay');
+    if (warOverlay) warOverlay.classList.remove('open');
+
+    const giveawayOverlay = document.getElementById('giveaway-overlay');
+    if (giveawayOverlay) giveawayOverlay.classList.add('hidden');
+
+    const bankerOverlay = document.getElementById('fb-overlay');
+    if (bankerOverlay) bankerOverlay.classList.remove('fb-show');
+
+    const companyOverlay = document.getElementById('tse_hq_panel');
+    if (companyOverlay) companyOverlay.classList.remove('tse_open');
+
+    renderHubVisibility();
+    alert('Hub layout reset. API keys were kept. Refresh Torn once if any old overlay is still stuck.');
+  }
+
   function ensureRoot() {
     if (document.getElementById(HUB_ID)) return;
 
@@ -533,7 +617,9 @@
             </div>
             <div class="thub-bank-grid">
               <input class="thub-bank-input" id="thub-bank-key" placeholder="Torn API key for bank requests">
-              <select class="thub-bank-input" id="thub-bank-faction"></select>
+              <select class="thub-bank-input" id="thub-bank-faction">
+                ${hubBankFactionOptions()}
+              </select>
               <input class="thub-bank-input" id="thub-bank-amount" inputmode="numeric" placeholder="Amount needed">
               <div class="thub-bank-actions">
                 <button class="thub-btn thub-open" id="thub-bank-send" type="button">Request Amount</button>
@@ -545,6 +631,14 @@
 
           <div class="thub-section-title">Apps</div>
           <div class="thub-grid" id="thub-app-grid"></div>
+
+          <div class="thub-section-title" style="margin-top:14px;">Tools</div>
+          <div class="thub-card thub-app-only">
+            <div class="thub-app-name">Fix Display / Reset Layout</div>
+            <div class="thub-card-actions">
+              <button class="thub-btn" id="thub-reset-layout" type="button">Reset Layout</button>
+            </div>
+          </div>
         </div>
       </div>
       <div id="${HUB_APP_LAYER_ID}"></div>
@@ -552,9 +646,17 @@
     document.body.appendChild(root);
 
     const closeBtn = document.getElementById('thub-close-btn');
+    const resetBtn = document.getElementById('thub-reset-layout');
 
     if (closeBtn) {
       closeBtn.addEventListener('click', closeHubFromButton);
+    }
+    if (resetBtn) {
+      resetBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        resetHubSavedLayout();
+      });
     }
     bindBankRequestBox();
 
@@ -620,15 +722,14 @@
 
   const HUB_BANK_API_BASE = 'https://faction-bankers-request.onrender.com';
   const HUB_BANK_KEY = 'fb_api_key_v1';
-  const HUB_BANK_FULL_NOTE = '__FULL_BALANCE_REQUEST__';
   const HUB_BANK_TARGET_FACTION = 'fb_target_faction_v1';
+  const HUB_BANK_FULL_NOTE = '__FULL_BALANCE_REQUEST__';
   const HUB_BANK_DEFAULT_FACTIONS = [
     { faction_id: '52040', faction_name: 'Sloth' },
     { faction_id: '20554', faction_name: 'Pride' },
     { faction_id: '8315', faction_name: 'Greed' },
-    { faction_id: '49384', faction_name: 'Wrath' },
+    { faction_id: '49384', faction_name: 'Wrath' }
   ];
-  let hubBankFactions = HUB_BANK_DEFAULT_FACTIONS.slice();
 
   function setHubBankStatus(msg, good) {
     const el = document.getElementById('thub-bank-status');
@@ -651,40 +752,30 @@
     const key = getHubBankKey();
     if (key && !input.value) input.value = key;
   }
-  function hubBankFactionOptions(selected) {
-    const items = Array.isArray(hubBankFactions) && hubBankFactions.length ? hubBankFactions : HUB_BANK_DEFAULT_FACTIONS;
-    return ['<option value="">Choose faction banker group</option>'].concat(items.map((f) => {
-      const id = String(f.faction_id || '');
-      const name = String(f.faction_name || id || 'Faction');
-      return '<option value="' + escapeHtml(id) + '" ' + (String(selected || '') === id ? 'selected' : '') + '>' + escapeHtml(name) + '</option>';
-    })).join('');
+  function hubBankFactionOptions() {
+    let selected = '';
+    try { selected = String(GM_getValue(HUB_BANK_TARGET_FACTION, '') || ''); } catch (_) {}
+    return [
+      '<option value="">Choose faction banker group</option>',
+      ...HUB_BANK_DEFAULT_FACTIONS.map((f) => {
+        const id = String(f.faction_id || '');
+        const name = String(f.faction_name || id);
+        return `<option value="${escapeHtml(id)}" ${selected === id ? 'selected' : ''}>${escapeHtml(name)}</option>`;
+      })
+    ].join('');
+  }
+  function getHubBankFaction() {
+    const select = document.getElementById('thub-bank-faction');
+    const val = String((select && select.value) || '').trim();
+    if (val) { try { GM_setValue(HUB_BANK_TARGET_FACTION, val); } catch (_) {} }
+    return val || String(GM_getValue(HUB_BANK_TARGET_FACTION, '') || '').trim();
   }
   function syncHubBankFactionBox() {
     const select = document.getElementById('thub-bank-faction');
     if (!select) return;
     let selected = '';
     try { selected = String(GM_getValue(HUB_BANK_TARGET_FACTION, '') || ''); } catch (_) {}
-    select.innerHTML = hubBankFactionOptions(selected);
     if (selected) select.value = selected;
-  }
-  async function refreshHubBankFactions() {
-    try {
-      const data = await hubBankRequest('GET', '/api/banker/factions');
-      if (data && Array.isArray(data.items) && data.items.length) hubBankFactions = data.items;
-    } catch (_) {
-      hubBankFactions = HUB_BANK_DEFAULT_FACTIONS.slice();
-    }
-    syncHubBankFactionBox();
-  }
-  function getHubSelectedFaction() {
-    const select = document.getElementById('thub-bank-faction');
-    const val = String((select && select.value) || '').trim();
-    if (val) { try { GM_setValue(HUB_BANK_TARGET_FACTION, val); } catch (_) {} }
-    return val;
-  }
-  function hubBankFactionName(id) {
-    const found = (hubBankFactions || []).find((f) => String(f.faction_id || '') === String(id || ''));
-    return found ? String(found.faction_name || id) : String(id || 'bankers');
   }
   function hubBankRequest(method, path, body) {
     const key = saveHubBankKeyFromBox();
@@ -712,14 +803,14 @@
     const amountRaw = String((amountInput && amountInput.value) || '').replace(/[^\d]/g, '');
     const amount = fullBalance ? 1 : Number(amountRaw);
     const note = fullBalance ? HUB_BANK_FULL_NOTE : '';
-    const targetFactionId = getHubSelectedFaction();
+    const targetFactionId = getHubBankFaction();
     if (!targetFactionId) { setHubBankStatus('Choose a faction banker group first.', false); return; }
     if (!fullBalance && (!amount || amount < 1)) { setHubBankStatus('Enter a valid amount.', false); return; }
     try {
       setHubBankStatus(fullBalance ? 'Sending full balance request...' : 'Sending request...', null);
       await hubBankRequest('POST', '/api/banker/requests', { amount, note, target_faction_id: targetFactionId });
       if (amountInput && !fullBalance) amountInput.value = '';
-      setHubBankStatus(fullBalance ? ('Full balance request sent to ' + hubBankFactionName(targetFactionId) + ' bankers.') : ('Request sent to ' + hubBankFactionName(targetFactionId) + ' bankers.'), true);
+      setHubBankStatus(fullBalance ? 'Full balance request sent.' : 'Request sent to selected bankers.', true);
       if (window.__FRIES_BANKERS_BRIDGE__ && typeof window.__FRIES_BANKERS_BRIDGE__.refresh === 'function') { try { window.__FRIES_BANKERS_BRIDGE__.refresh(); } catch (_) {} }
     } catch (err) { setHubBankStatus(err && err.message ? err.message : 'Request failed.', false); }
   }
@@ -731,7 +822,6 @@
   function bindBankRequestBox() {
     syncHubBankKeyBox();
     syncHubBankFactionBox();
-    refreshHubBankFactions();
     const send = document.getElementById('thub-bank-send');
     const full = document.getElementById('thub-bank-full');
     const board = document.getElementById('thub-bank-board-btn');
@@ -740,15 +830,14 @@
     if (send) send.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); submitHubBankRequest(false); });
     if (full) full.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); submitHubBankRequest(true); });
     if (board) board.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openHubBankBoard(); });
-    if (key) key.addEventListener('change', () => { saveHubBankKeyFromBox(); setHubBankStatus('API key saved for bank requests.', true); refreshHubBankFactions(); });
-    if (faction) faction.addEventListener('change', () => { getHubSelectedFaction(); setHubBankStatus('Faction banker group saved.', true); });
+    if (key) key.addEventListener('change', () => { saveHubBankKeyFromBox(); setHubBankStatus('API key saved for bank requests.', true); });
   }
 
   function renderHubCards() {
     const grid = document.getElementById('thub-app-grid');
     if (!grid) return;
 
-    const apps = state.apps.slice();
+    const apps = state.apps.slice().filter(appIsVisible);
 
     if (!apps.length) {
       grid.innerHTML = `<div class="thub-empty">No apps are loaded yet.</div>`;
@@ -776,7 +865,7 @@
 
   function openApp(appId) {
     const app = state.apps.find((a) => a.id === appId);
-    if (!app) return;
+    if (!app || !appIsVisible(app)) return;
 
     // PDA performance fix: close only the Hub menu after opening an app,
     // so the phone is not rendering two overlays at the same time.
@@ -1276,12 +1365,14 @@
 
     registerApp({
       id: 'companyhub',
-      name: 'Company Hub',
+      name: 'T.S.E',
       icon: '🏤',
-      description: 'Company tools, trains, HoF search, notes, and company keys.',
+      description: 'Protected company tools for Bob_The_Ninja and admin only.',
+      visible: isTseAllowedViewer,
       open: ({ createWindow }) => {
+        if (!isTseAllowedViewer()) return;
         if (window.__FRIES_COMPANY_HUB_BRIDGE__ && typeof window.__FRIES_COMPANY_HUB_BRIDGE__.open === 'function') { window.__FRIES_COMPANY_HUB_BRIDGE__.open(); return; }
-        createWindow({ id:'companyhub-error', title:'Company Hub', width:420, content:'<div class="thub-card"><div class="thub-app-name">Company Hub is not loaded yet</div><div class="thub-app-desc">Refresh Torn once and try again.</div></div>' });
+        createWindow({ id:'companyhub-error', title:'T.S.E', width:420, content:'<div class="thub-card"><div class="thub-app-name">T.S.E is not loaded yet</div><div class="thub-app-desc">Refresh Torn once and try again.</div></div>' });
       },
     });
 
@@ -2995,6 +3086,7 @@ function makeHoldDraggable(handle, target, key) {
                 if (!state.user && res.json.user) state.user = res.json.user;
                 if (!state.access && res.json.access) state.access = res.json.access;
                 try { setAccessCache(state.access || {}); } catch (_e0) {}
+                try { if (window.__FRIES_HUB_SET_VIEWER__) window.__FRIES_HUB_SET_VIEWER__({ user_id: (state.viewer && state.viewer.user_id) || (state.user && state.user.user_id) || '', name: (state.viewer && state.viewer.name) || (state.user && state.user.name) || '', is_admin: !!(state.access && state.access.is_admin) }); } catch (_e_hub_viewer) {}
             } else if (res.json.viewer || res.json.user || res.json.access) {
                 state = state || {};
                 if (res.json.viewer) state.viewer = res.json.viewer;
@@ -3002,6 +3094,7 @@ function makeHoldDraggable(handle, target, key) {
                 if (res.json.access) {
                     state.access = res.json.access;
                     try { setAccessCache(res.json.access || {}); } catch (_e00) {}
+                    try { if (window.__FRIES_HUB_SET_VIEWER__) window.__FRIES_HUB_SET_VIEWER__({ user_id: (state.viewer && state.viewer.user_id) || (state.user && state.user.user_id) || '', name: (state.viewer && state.viewer.name) || (state.user && state.user.name) || '', is_admin: !!(state.access && state.access.is_admin) }); } catch (_e_hub_viewer2) {}
                 }
             }
 
@@ -3094,6 +3187,7 @@ function _loadState() {
 
         state = (res.json && typeof res.json === 'object') ? res.json : {};
         setAccessCache(state.access || {});
+        try { if (window.__FRIES_HUB_SET_VIEWER__) window.__FRIES_HUB_SET_VIEWER__({ user_id: (state.viewer && state.viewer.user_id) || (state.user && state.user.user_id) || '', name: (state.viewer && state.viewer.name) || (state.user && state.user.name) || '', is_admin: !!(state.access && state.access.is_admin) }); } catch (_e_hub_viewer3) {}
 
         if (!state.war || typeof state.war !== 'object') state.war = {};
         if (!state.faction || typeof state.faction !== 'object') state.faction = {};
@@ -12100,10 +12194,9 @@ function _handleActionClick() {
   }
 
   function mountCoin() {
-    // Hub build: remove the standalone coin completely.
-    document.querySelectorAll("#fb-bank-coin-clean,#fb-bank-coin").forEach((el) => {
-      try { el.remove(); } catch (_) {}
-    });
+    const oldCoin = $("#fb-bank-coin-clean");
+    if (oldCoin) oldCoin.remove();
+    document.querySelectorAll("#fb-bank-coin,#fb-setup-button").forEach((el) => { try { el.remove(); } catch {} });
   }
 
   function findFactionBuiltInMount() {
@@ -12149,10 +12242,8 @@ function _handleActionClick() {
 
 
   function ensureSetupButton() {
-    // Hub build: no standalone setup button. Settings are opened from the Hub/Bank Board.
-    document.querySelectorAll("#fb-setup-button").forEach((el) => {
-      try { el.remove(); } catch (_) {}
-    });
+    const oldSetup = $("#fb-setup-button");
+    if (oldSetup) oldSetup.remove();
   }
 
   function ensureOverlay() {
@@ -12240,7 +12331,7 @@ function _handleActionClick() {
       if (window.__FRIES_HUB_BANK_ALERT__ && typeof window.__FRIES_HUB_BANK_ALERT__.set === "function") {
         window.__FRIES_HUB_BANK_ALERT__.set(n, canBank);
       }
-    } catch (_) {}
+    } catch {}
 
     if (coin) {
       coin.setAttribute("data-count", String(n > 99 ? "99+" : n));
@@ -12825,6 +12916,15 @@ function _handleActionClick() {
 
       const me = await gmRequest("GET", "/api/banker/me");
       APP.me = me;
+      try {
+        if (window.__FRIES_HUB_SET_VIEWER__) {
+          window.__FRIES_HUB_SET_VIEWER__({
+            user_id: me && (me.player_id || me.user_id || me.id),
+            name: me && (me.name || me.user_name || me.username),
+            is_admin: !!(me && me.is_admin)
+          });
+        }
+      } catch {}
 
       const list = await gmRequest("GET", "/api/banker/requests");
       APP.requests = Array.isArray(list.items) ? list.items : [];
@@ -12839,8 +12939,6 @@ function _handleActionClick() {
       return true;
     } catch (err) {
       APP.factions = APP.factions?.length ? APP.factions : DEFAULT_FACTIONS.slice();
-      mountCoin();
-
       const subtitle = $("#fb-subtitle");
       if (subtitle) {
         subtitle.textContent = `Last refresh failed: ${String(err.message || err).slice(0, 60)}`;
@@ -12902,8 +13000,8 @@ function _handleActionClick() {
   window.__FRIES_BANKERS_BRIDGE__ = {
     open: function () { ensureStyles(); ensureOverlay(); openOverlay(); },
     close: function () { closeOverlay(); },
-    refresh: function () { try { refreshAll(true); } catch (_) {} },
-    factions: function () { return (APP.factions || DEFAULT_FACTIONS).slice(); }
+    refresh: function () { try { refreshAll(true); } catch {} },
+    getPendingCount: function () { return APP.pendingCount || 0; }
   };
 
   function boot() {
@@ -12911,7 +13009,6 @@ function _handleActionClick() {
 
     ensureStyles();
     ensureSetupButton();
-    mountCoin();
     ensureOverlay();
 
     APP.booted = true;
@@ -12921,8 +13018,6 @@ function _handleActionClick() {
     setTimeout(() => refreshAll(true), 1800);
 
     setInterval(() => {
-      mountCoin();
-  
       if (GM_getValue(K_API_KEY, "")) {
         refreshAll(false);
       }
@@ -12938,8 +13033,7 @@ function _handleActionClick() {
       if (!isTornPage()) return;
       ensureStyles();
       ensureSetupButton();
-      mountCoin();
-        ensureOverlay();
+      ensureOverlay();
     });
 
     obs.observe(document.documentElement || document.body, {
@@ -12961,8 +13055,7 @@ function _handleActionClick() {
 
       setTimeout(() => {
         if (isTornPage()) {
-          mountCoin();
-                refreshAll(true);
+          refreshAll(true);
         }
       }, 800);
     }

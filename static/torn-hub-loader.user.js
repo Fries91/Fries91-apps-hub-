@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🍟 apps
 // @namespace    torn.hub.fries91
-// @version      0.6.5
-// @description  PDA friendly Torn app hub launcher with bank request alerts, War Hub, Insurance, Giveaway, Company Hub, and Rolling Lottery.
+// @version      0.6.6
+// @description  PDA friendly Torn app hub launcher with updated bank request factions, War Hub, Insurance, Giveaway, Company Hub, and Rolling Lottery.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -533,6 +533,7 @@
             </div>
             <div class="thub-bank-grid">
               <input class="thub-bank-input" id="thub-bank-key" placeholder="Torn API key for bank requests">
+              <select class="thub-bank-input" id="thub-bank-faction"></select>
               <input class="thub-bank-input" id="thub-bank-amount" inputmode="numeric" placeholder="Amount needed">
               <div class="thub-bank-actions">
                 <button class="thub-btn thub-open" id="thub-bank-send" type="button">Request Amount</button>
@@ -620,6 +621,14 @@
   const HUB_BANK_API_BASE = 'https://faction-bankers-request.onrender.com';
   const HUB_BANK_KEY = 'fb_api_key_v1';
   const HUB_BANK_FULL_NOTE = '__FULL_BALANCE_REQUEST__';
+  const HUB_BANK_TARGET_FACTION = 'fb_target_faction_v1';
+  const HUB_BANK_DEFAULT_FACTIONS = [
+    { faction_id: '52040', faction_name: 'Sloth' },
+    { faction_id: '20554', faction_name: 'Pride' },
+    { faction_id: '8315', faction_name: 'Greed' },
+    { faction_id: '49384', faction_name: 'Wrath' },
+  ];
+  let hubBankFactions = HUB_BANK_DEFAULT_FACTIONS.slice();
 
   function setHubBankStatus(msg, good) {
     const el = document.getElementById('thub-bank-status');
@@ -641,6 +650,41 @@
     if (!input) return;
     const key = getHubBankKey();
     if (key && !input.value) input.value = key;
+  }
+  function hubBankFactionOptions(selected) {
+    const items = Array.isArray(hubBankFactions) && hubBankFactions.length ? hubBankFactions : HUB_BANK_DEFAULT_FACTIONS;
+    return ['<option value="">Choose faction banker group</option>'].concat(items.map((f) => {
+      const id = String(f.faction_id || '');
+      const name = String(f.faction_name || id || 'Faction');
+      return '<option value="' + escapeHtml(id) + '" ' + (String(selected || '') === id ? 'selected' : '') + '>' + escapeHtml(name) + '</option>';
+    })).join('');
+  }
+  function syncHubBankFactionBox() {
+    const select = document.getElementById('thub-bank-faction');
+    if (!select) return;
+    let selected = '';
+    try { selected = String(GM_getValue(HUB_BANK_TARGET_FACTION, '') || ''); } catch (_) {}
+    select.innerHTML = hubBankFactionOptions(selected);
+    if (selected) select.value = selected;
+  }
+  async function refreshHubBankFactions() {
+    try {
+      const data = await hubBankRequest('GET', '/api/banker/factions');
+      if (data && Array.isArray(data.items) && data.items.length) hubBankFactions = data.items;
+    } catch (_) {
+      hubBankFactions = HUB_BANK_DEFAULT_FACTIONS.slice();
+    }
+    syncHubBankFactionBox();
+  }
+  function getHubSelectedFaction() {
+    const select = document.getElementById('thub-bank-faction');
+    const val = String((select && select.value) || '').trim();
+    if (val) { try { GM_setValue(HUB_BANK_TARGET_FACTION, val); } catch (_) {} }
+    return val;
+  }
+  function hubBankFactionName(id) {
+    const found = (hubBankFactions || []).find((f) => String(f.faction_id || '') === String(id || ''));
+    return found ? String(found.faction_name || id) : String(id || 'bankers');
   }
   function hubBankRequest(method, path, body) {
     const key = saveHubBankKeyFromBox();
@@ -668,12 +712,14 @@
     const amountRaw = String((amountInput && amountInput.value) || '').replace(/[^\d]/g, '');
     const amount = fullBalance ? 1 : Number(amountRaw);
     const note = fullBalance ? HUB_BANK_FULL_NOTE : '';
+    const targetFactionId = getHubSelectedFaction();
+    if (!targetFactionId) { setHubBankStatus('Choose a faction banker group first.', false); return; }
     if (!fullBalance && (!amount || amount < 1)) { setHubBankStatus('Enter a valid amount.', false); return; }
     try {
       setHubBankStatus(fullBalance ? 'Sending full balance request...' : 'Sending request...', null);
-      await hubBankRequest('POST', '/api/banker/requests', { amount, note });
+      await hubBankRequest('POST', '/api/banker/requests', { amount, note, target_faction_id: targetFactionId });
       if (amountInput && !fullBalance) amountInput.value = '';
-      setHubBankStatus(fullBalance ? 'Full balance request sent.' : 'Request sent to bankers.', true);
+      setHubBankStatus(fullBalance ? ('Full balance request sent to ' + hubBankFactionName(targetFactionId) + ' bankers.') : ('Request sent to ' + hubBankFactionName(targetFactionId) + ' bankers.'), true);
       if (window.__FRIES_BANKERS_BRIDGE__ && typeof window.__FRIES_BANKERS_BRIDGE__.refresh === 'function') { try { window.__FRIES_BANKERS_BRIDGE__.refresh(); } catch (_) {} }
     } catch (err) { setHubBankStatus(err && err.message ? err.message : 'Request failed.', false); }
   }
@@ -684,14 +730,18 @@
   }
   function bindBankRequestBox() {
     syncHubBankKeyBox();
+    syncHubBankFactionBox();
+    refreshHubBankFactions();
     const send = document.getElementById('thub-bank-send');
     const full = document.getElementById('thub-bank-full');
     const board = document.getElementById('thub-bank-board-btn');
     const key = document.getElementById('thub-bank-key');
+    const faction = document.getElementById('thub-bank-faction');
     if (send) send.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); submitHubBankRequest(false); });
     if (full) full.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); submitHubBankRequest(true); });
     if (board) board.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openHubBankBoard(); });
-    if (key) key.addEventListener('change', () => { saveHubBankKeyFromBox(); setHubBankStatus('API key saved for bank requests.', true); });
+    if (key) key.addEventListener('change', () => { saveHubBankKeyFromBox(); setHubBankStatus('API key saved for bank requests.', true); refreshHubBankFactions(); });
+    if (faction) faction.addEventListener('change', () => { getHubSelectedFaction(); setHubBankStatus('Faction banker group saved.', true); });
   }
 
   function renderHubCards() {
@@ -11312,8 +11362,8 @@ function _handleActionClick() {
 // ==UserScript==
 // @name         Torn Faction Bankers 🪙 
 // @namespace    Fries91.Torn.FactionBankers.
-// @version      0.5.8
-// @description  Faction vault request app with header coin alert and built-in faction page request bar.
+// @version      0.6.4
+// @description  Faction vault request app with coin-only launcher and faction dropdown.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -11330,6 +11380,7 @@ function _handleActionClick() {
   "use strict";
 
   const BANKER_API_BASE = "https://faction-bankers-request.onrender.com";
+  const FB_BUILD = "0.6.4-coin-only";
 
   // Locked PDA/Torn header position for money / points / merits / gender row.
   // Increase LEFT to move right. Decrease LEFT to move left.
@@ -11340,16 +11391,28 @@ function _handleActionClick() {
   const K_API_KEY = "fb_api_key_v1";
   const K_OPEN = "fb_overlay_open_v1";
   const K_SEEN_PENDING = "fb_seen_pending_ids_v1";
+  const K_TARGET_FACTION = "fb_target_faction_v1";
   const FULL_BALANCE_NOTE = "__FULL_BALANCE_REQUEST__";
+
+  // PDA-safe fallback list.
+  // This lets the dropdown still work even if Render is waking up or the new /api/banker/factions endpoint is not live yet.
+  const DEFAULT_FACTIONS = [
+    { faction_id: "52040", faction_name: "Sloth" },
+    { faction_id: "20554", faction_name: "Pride" },
+    { faction_id: "8315", faction_name: "Greed" },
+    { faction_id: "49384", faction_name: "Wrath" },
+  ];
 
   const APP = {
     me: null,
+    factions: DEFAULT_FACTIONS.slice(),
     requests: [],
     pendingCount: 0,
     busy: false,
     open: false,
     lastLoad: 0,
     booted: false,
+    refreshing: false,
   };
 
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -11407,7 +11470,7 @@ function _handleActionClick() {
           "X-Torn-Key": GM_getValue(K_API_KEY, ""),
         },
         data: body ? JSON.stringify(body) : undefined,
-        timeout: 25000,
+        timeout: 45000,
         onload: (res) => {
           let data = {};
           try {
@@ -11455,14 +11518,19 @@ function _handleActionClick() {
       }
 
       #fb-bank-coin-clean.fb-fixed-test {
+        display: inline-flex !important;
         position: fixed !important;
-        right: 8px !important;
-        bottom: 74px !important;
-        z-index: 100000 !important;
-        background: rgba(0,0,0,.55) !important;
+        right: 10px !important;
+        bottom: 132px !important;
+        z-index: 100001 !important;
+        width: 36px !important;
+        height: 34px !important;
+        background: rgba(0,0,0,.78) !important;
+        border-color: rgba(255,211,106,.65) !important;
+        box-shadow: 0 5px 16px rgba(0,0,0,.55) !important;
       }
 
-      #fb-bank-coin-clean.fb-fixed-header {
+            #fb-bank-coin-clean.fb-fixed-header {
         position: relative !important;
         left: auto !important;
         top: auto !important;
@@ -11568,6 +11636,7 @@ function _handleActionClick() {
       }
 
       #fb-built-amount,
+      #fb-built-faction,
       #fb-built-note {
         min-width: 0;
         border: 1px solid rgba(255,255,255,.16);
@@ -11643,7 +11712,7 @@ function _handleActionClick() {
         border-radius: 16px;
         box-shadow: 0 18px 50px rgba(0,0,0,.62);
         color: #eee;
-        z-index: 99999;
+        z-index: 100000;
         font-family: Arial, Helvetica, sans-serif;
       }
 
@@ -11918,6 +11987,7 @@ function _handleActionClick() {
       }
 
         #fb-built-amount,
+        #fb-built-faction,
         #fb-built-send {
           width: 100%;
           box-sizing: border-box;
@@ -12030,46 +12100,10 @@ function _handleActionClick() {
   }
 
   function mountCoin() {
-    document.querySelectorAll("#fb-bank-coin").forEach((oldCoin) => {
-      oldCoin.style.display = "none";
-      oldCoin.remove();
+    // Hub build: remove the standalone coin completely.
+    document.querySelectorAll("#fb-bank-coin-clean,#fb-bank-coin").forEach((el) => {
+      try { el.remove(); } catch (_) {}
     });
-
-    let coin = $("#fb-bank-coin-clean");
-
-    if (!coin) {
-      coin = document.createElement("button");
-      coin.id = "fb-bank-coin-clean";
-      coin.type = "button";
-      coin.title = "Faction Bankers";
-      coin.textContent = "🪙";
-      coin.setAttribute("data-count", "0");
-      coin.addEventListener("click", openBankerBoard);
-    }
-
-    coin.classList.remove("fb-fixed-test", "fb-fixed-header");
-    coin.classList.add("fb-gender-lock");
-
-    const row = findTornResourceRow();
-
-    if (!GM_getValue(K_API_KEY, "")) {
-      coin.classList.add("fb-banker-visible");
-    }
-
-    if (row) {
-      row.classList.add("fb-coin-mount-row");
-
-      // Mount inside the real money/points/merits row, but lock it visually beside gender
-      // instead of appending it to the far end of the row.
-      if (coin.parentElement !== row) {
-        row.appendChild(coin);
-      }
-    } else if (coin.parentElement !== document.body) {
-      // Last-resort tiny fixed button so it never disappears during testing.
-      coin.classList.remove("fb-gender-lock");
-      coin.classList.add("fb-fixed-test");
-      document.body.appendChild(coin);
-    }
   }
 
   function findFactionBuiltInMount() {
@@ -12106,78 +12140,19 @@ function _handleActionClick() {
   }
 
   function mountBuiltInBankerBox() {
-    if (!isOwnFactionPage()) {
-      const oldBox = $("#fb-built-in-box");
-      if (oldBox) oldBox.remove();
-      return;
-    }
-    if ($("#fb-built-in-box")) return;
-
-    const box = document.createElement("div");
-    box.id = "fb-built-in-box";
-    box.innerHTML = `
-      <div class="fb-built-head">
-        <div>
-          <b>🪙 Faction Bankers</b>
-          <span id="fb-built-status">Request faction vault money</span>
-        </div>
-        <button id="fb-built-open" type="button">Open</button>
-      </div>
-
-      <div class="fb-built-grid">
-        <input id="fb-built-amount" inputmode="numeric" placeholder="Amount needed">
-        <button id="fb-built-full" type="button">Request Full Balance</button>
-        <button id="fb-built-send" type="button">Request Amount</button>
-      </div>
-    `;
-
-    const tabBar =
-      document.querySelector(".faction-tabs") ||
-      document.querySelector("[class*='faction'] [class*='tabs']") ||
-      document.querySelector("[class*='tabs']");
-
-    if (tabBar && tabBar.parentElement) {
-      tabBar.parentElement.insertBefore(box, tabBar.nextSibling);
-    } else {
-      const mount = findFactionBuiltInMount();
-
-      const warBox = Array.from(mount.querySelectorAll("div")).find((el) =>
-        String(el.textContent || "").toLowerCase().includes("your faction is not in a war")
-      );
-
-      if (warBox?.parentElement) {
-        warBox.parentElement.insertBefore(box, warBox);
-      } else {
-        mount.insertBefore(box, mount.firstChild);
-      }
-    }
-
-    $("#fb-built-open")?.addEventListener("click", openOverlay);
-    $("#fb-built-send")?.addEventListener("click", submitBuiltInRequest);
-    $("#fb-built-full")?.addEventListener("click", submitFullBalanceRequest);
+    // Removed from faction page for PDA performance.
+    // Coin-only launcher now opens the request overlay.
+    const oldBox = $("#fb-built-in-box");
+    if (oldBox) oldBox.remove();
+    return;
   }
 
+
   function ensureSetupButton() {
-    if ($("#fb-setup-button")) return;
-
-    const btn = document.createElement("button");
-    btn.id = "fb-setup-button";
-    btn.type = "button";
-    btn.textContent = "🪙 Setup";
-    btn.title = "Open Faction Bankers settings";
-    btn.addEventListener("click", () => {
-      openOverlay();
-      setTimeout(() => {
-        const settingsTab = document.querySelector('.fb-tab[data-tab="settings"]');
-        if (settingsTab) settingsTab.click();
-      }, 150);
+    // Hub build: no standalone setup button. Settings are opened from the Hub/Bank Board.
+    document.querySelectorAll("#fb-setup-button").forEach((el) => {
+      try { el.remove(); } catch (_) {}
     });
-
-    document.body.appendChild(btn);
-
-    if (GM_getValue(K_API_KEY, "")) {
-      btn.classList.add("fb-hide");
-    }
   }
 
   function ensureOverlay() {
@@ -12262,7 +12237,7 @@ function _handleActionClick() {
     APP.pendingCount = n;
 
     try {
-      if (window.__FRIES_HUB_BANK_ALERT__ && typeof window.__FRIES_HUB_BANK_ALERT__.set === 'function') {
+      if (window.__FRIES_HUB_BANK_ALERT__ && typeof window.__FRIES_HUB_BANK_ALERT__.set === "function") {
         window.__FRIES_HUB_BANK_ALERT__.set(n, canBank);
       }
     } catch (_) {}
@@ -12270,15 +12245,8 @@ function _handleActionClick() {
     if (coin) {
       coin.setAttribute("data-count", String(n > 99 ? "99+" : n));
 
-      // Show coin when:
-      // 1) no key yet, so user can open settings/login
-      // 2) user is banker/admin
-      // 3) there are pending requests
-      if (!hasKey || canBank || n > 0) {
-        coin.classList.add("fb-banker-visible");
-      } else {
-        coin.classList.remove("fb-banker-visible");
-      }
+      // Always show the coin so members can open the app and send requests.
+      coin.classList.add("fb-banker-visible", "fb-fixed-test");
 
       if (canBank && n > 0) {
         coin.classList.add("fb-alert");
@@ -12324,6 +12292,41 @@ function _handleActionClick() {
     return `<span class="fb-pill ${esc(s)}">${esc(label)}</span>`;
   }
 
+
+  function factionOptions(selected = GM_getValue(K_TARGET_FACTION, "")) {
+    const items = Array.isArray(APP.factions) && APP.factions.length ? APP.factions : DEFAULT_FACTIONS;
+
+    return [
+      `<option value="">Choose faction banker group</option>`,
+      ...items.map((f) => {
+        const id = String(f.faction_id || "");
+        const name = String(f.faction_name || id);
+        return `<option value="${esc(id)}" ${String(selected) === id ? "selected" : ""}>${esc(name)}</option>`;
+      }),
+    ].join("");
+  }
+
+  function rememberFactionFromSelect(sel) {
+    const val = $(sel)?.value || "";
+    if (val) GM_setValue(K_TARGET_FACTION, val);
+    return val;
+  }
+
+  function selectedFactionFromPage() {
+    return (
+      $("#fb-target-faction")?.value ||
+      $("#fb-built-faction")?.value ||
+      GM_getValue(K_TARGET_FACTION, "") ||
+      ""
+    );
+  }
+
+  function factionLabelById(factionId) {
+    const id = String(factionId || "");
+    const found = (APP.factions || []).find((f) => String(f.faction_id) === id);
+    return found?.faction_name || id;
+  }
+
   function renderBody(tab = activeTab()) {
     if (!GM_getValue(K_API_KEY, "")) {
       renderSettings("Add your Torn API key first.");
@@ -12356,7 +12359,12 @@ function _handleActionClick() {
       </div>
 
       <div class="fb-box">
-        <label class="fb-label">Amount requested</label>
+        <label class="fb-label">Choose faction banker group</label>
+        <select id="fb-target-faction" class="fb-input">
+          ${factionOptions()}
+        </select>
+
+        <label class="fb-label" style="margin-top:10px;">Amount requested</label>
         <input id="fb-amount" class="fb-input" inputmode="numeric" placeholder="Example: 25000000">
 
         <div class="fb-row" style="margin-top:10px;">
@@ -12369,11 +12377,12 @@ function _handleActionClick() {
         </div>
 
         <div class="fb-small" style="margin-top:8px;">
-          This sends a request to faction bankers. A banker still pays from the faction vault manually.
+          Pick the Deadly Sins faction group first. Only bankers assigned to that faction will get the red coin notification.
         </div>
       </div>
     `);
 
+    $("#fb-target-faction")?.addEventListener("change", () => rememberFactionFromSelect("#fb-target-faction"));
     $("#fb-submit-request")?.addEventListener("click", submitRequest);
     $("#fb-full-request")?.addEventListener("click", submitFullBalanceRequest);
     $("#fb-refresh")?.addEventListener("click", () => refreshAll(true));
@@ -12457,6 +12466,7 @@ function _handleActionClick() {
 
     const created = r.created_at ? esc(r.created_at) : "";
     const requester = esc(r.requester_name || `User ${r.requester_id || ""}`);
+    const targetFaction = esc(r.faction_name || factionLabelById(r.faction_id) || "Faction");
     const handledBy = r.handled_by_name ? `<div class="fb-small">Handled by: ${esc(r.handled_by_name)}</div>` : "";
 
     let actions = "";
@@ -12487,7 +12497,7 @@ function _handleActionClick() {
         <div class="fb-row fb-space">
           <div>
             <div class="fb-request-title">${requester} requested ${String(r.note || "") === FULL_BALANCE_NOTE ? "Full Balance" : money(r.amount)}</div>
-            <div class="fb-request-meta">Request #${id}${created ? ` • ${created}` : ""}</div>
+            <div class="fb-request-meta">For ${targetFaction} • Request #${id}${created ? ` • ${created}` : ""}</div>
           </div>
           ${statusPill(status)}
         </div>
@@ -12549,10 +12559,17 @@ function _handleActionClick() {
     if (APP.busy) return;
 
     const status = $("#fb-built-status");
+    const targetFactionId = selectedFactionFromPage();
 
     if (!GM_getValue(K_API_KEY, "")) {
       if (status) status.textContent = "Save your API key in settings first";
       openOverlay();
+      return;
+    }
+
+    if (!targetFactionId) {
+      if (status) status.textContent = "Choose faction first";
+      if (APP.open) renderRequestTab(`<div class="fb-error">Choose a faction banker group first.</div>`);
       return;
     }
 
@@ -12563,13 +12580,15 @@ function _handleActionClick() {
       await gmRequest("POST", "/api/banker/requests", {
         amount: 1,
         note: FULL_BALANCE_NOTE,
+        target_faction_id: targetFactionId,
       });
 
-      if (status) status.textContent = "Full balance request sent to bankers";
+      GM_setValue(K_TARGET_FACTION, targetFactionId);
+      if (status) status.textContent = `Full balance request sent to ${factionLabelById(targetFactionId)} bankers`;
       await refreshAll(true);
 
       if (APP.open) {
-        renderRequestTab(`<div class="fb-success">Full balance request sent to faction bankers.</div>`);
+        renderRequestTab(`<div class="fb-success">Full balance request sent to ${esc(factionLabelById(targetFactionId))} bankers.</div>`);
       }
     } catch (err) {
       if (status) status.textContent = err.message || "Request failed";
@@ -12587,11 +12606,17 @@ function _handleActionClick() {
     const amountRaw = ($("#fb-built-amount")?.value || "").replace(/[^\d]/g, "");
     const amount = Number(amountRaw);
     const note = "";
+    const targetFactionId = $("#fb-built-faction")?.value || "";
     const status = $("#fb-built-status");
 
     if (!GM_getValue(K_API_KEY, "")) {
       if (status) status.textContent = "Save your API key in settings first";
       openOverlay();
+      return;
+    }
+
+    if (!targetFactionId) {
+      if (status) status.textContent = "Choose faction first";
       return;
     }
 
@@ -12604,9 +12629,14 @@ function _handleActionClick() {
     if (status) status.textContent = "Sending request...";
 
     try {
-      await gmRequest("POST", "/api/banker/requests", { amount, note });
+      await gmRequest("POST", "/api/banker/requests", {
+        amount,
+        note,
+        target_faction_id: targetFactionId,
+      });
+      GM_setValue(K_TARGET_FACTION, targetFactionId);
       $("#fb-built-amount").value = "";
-      if (status) status.textContent = "Request sent to bankers";
+      if (status) status.textContent = `Request sent to ${factionLabelById(targetFactionId)} bankers`;
       await refreshAll(true);
     } catch (err) {
       if (status) status.textContent = err.message || "Request failed";
@@ -12621,6 +12651,12 @@ function _handleActionClick() {
     const amountRaw = ($("#fb-amount")?.value || "").replace(/[^\d]/g, "");
     const amount = Number(amountRaw);
     const note = "";
+    const targetFactionId = $("#fb-target-faction")?.value || "";
+
+    if (!targetFactionId) {
+      renderRequestTab(`<div class="fb-error">Choose a faction banker group first.</div>`);
+      return;
+    }
 
     if (!amount || amount < 1) {
       renderRequestTab(`<div class="fb-error">Enter a valid amount.</div>`);
@@ -12631,9 +12667,14 @@ function _handleActionClick() {
     renderRequestTab(`<div class="fb-muted">Sending request...</div>`);
 
     try {
-      await gmRequest("POST", "/api/banker/requests", { amount, note });
+      await gmRequest("POST", "/api/banker/requests", {
+        amount,
+        note,
+        target_faction_id: targetFactionId,
+      });
+      GM_setValue(K_TARGET_FACTION, targetFactionId);
       await refreshAll(true);
-      renderRequestTab(`<div class="fb-success">Amount request sent to faction bankers.</div>`);
+      renderRequestTab(`<div class="fb-success">Amount request sent to ${esc(factionLabelById(targetFactionId))} bankers.</div>`);
     } catch (err) {
       renderRequestTab(`<div class="fb-error">${esc(err.message || err)}</div>`);
     } finally {
@@ -12667,6 +12708,20 @@ function _handleActionClick() {
     }
   }
 
+
+
+  function upsertRequestItem(item) {
+    if (!item || !item.id) return;
+
+    const id = String(item.id);
+    const list = Array.isArray(APP.requests) ? APP.requests.slice() : [];
+    const idx = list.findIndex((r) => String(r.id) === id);
+
+    if (idx >= 0) list[idx] = item;
+    else list.unshift(item);
+
+    APP.requests = list;
+  }
 
   function getSeenPendingIds() {
     try {
@@ -12719,7 +12774,7 @@ function _handleActionClick() {
     if ("Notification" in window && Notification.permission === "granted") {
       for (const req of fresh.slice(0, 3)) {
         const title = "🪙 New Faction Bank Request";
-        const body = `${req.requester_name || "Member"} requested ${String(req.note || "") === FULL_BALANCE_NOTE ? "Full Balance" : money(req.amount)}`;
+        const body = `${req.requester_name || "Member"} requested ${String(req.note || "") === FULL_BALANCE_NOTE ? "Full Balance" : money(req.amount)} for ${req.faction_name || "Faction"}`;
 
         try {
           const n = new Notification(title, {
@@ -12746,14 +12801,28 @@ function _handleActionClick() {
     if (!key) {
       setCoinAlert(0);
       if (APP.open) renderSettings("Add your Torn API key first.");
-      return;
+      return false;
     }
 
-    if (!force && Date.now() - APP.lastLoad < 12000) return;
+    if (!force && Date.now() - APP.lastLoad < 12000) return true;
+    if (APP.refreshing) return true;
 
+    APP.refreshing = true;
     APP.lastLoad = Date.now();
 
     try {
+      // Keep dropdown usable even if the new factions endpoint is not deployed yet.
+      APP.factions = APP.factions?.length ? APP.factions : DEFAULT_FACTIONS.slice();
+
+      try {
+        const factions = await gmRequest("GET", "/api/banker/factions");
+        if (Array.isArray(factions.items) && factions.items.length) {
+          APP.factions = factions.items;
+        }
+      } catch (factionErr) {
+        APP.factions = DEFAULT_FACTIONS.slice();
+      }
+
       const me = await gmRequest("GET", "/api/banker/me");
       APP.me = me;
 
@@ -12767,7 +12836,40 @@ function _handleActionClick() {
       notifyBankerForNewPending(pendingItems);
 
       if (APP.open) renderBody(activeTab());
+      return true;
     } catch (err) {
+      APP.factions = APP.factions?.length ? APP.factions : DEFAULT_FACTIONS.slice();
+      mountCoin();
+
+      const subtitle = $("#fb-subtitle");
+      if (subtitle) {
+        subtitle.textContent = `Last refresh failed: ${String(err.message || err).slice(0, 60)}`;
+      }
+
+      // Do not wipe the current screen after a successful request.
+      // Render can briefly miss one API call while waking/redeploying; keeping the last good board is better on PDA.
+      if (APP.me) {
+        if (APP.open) {
+          const body = $("#fb-body");
+          if (body && !body.querySelector("#fb-soft-network-error")) {
+            body.insertAdjacentHTML("afterbegin", `
+              <div id="fb-soft-network-error" class="fb-box">
+                <div class="fb-error">Refresh missed Render once. Your request may still be saved.</div>
+                <div class="fb-row" style="margin-top:8px;">
+                  <button id="fb-retry-network" class="fb-btn gold" type="button">Retry</button>
+                </div>
+              </div>
+            `);
+            $("#fb-retry-network")?.addEventListener("click", () => {
+              const box = $("#fb-soft-network-error");
+              if (box) box.remove();
+              refreshAll(true);
+            });
+          }
+        }
+        return false;
+      }
+
       setCoinAlert(0);
 
       if (APP.open) {
@@ -12775,11 +12877,24 @@ function _handleActionClick() {
           <div class="fb-box">
             <div class="fb-error">${esc(err.message || err)}</div>
             <div class="fb-small" style="margin-top:8px;">
-              Check your API key and backend URL.
+              The app is open, but Render did not answer one of the API calls. Make sure app.py is deployed and the service is awake.
+            </div>
+            <div class="fb-row" style="margin-top:10px;">
+              <button id="fb-retry-network" class="fb-btn gold" type="button">Retry</button>
+              <button id="fb-open-settings2" class="fb-btn" type="button">Settings</button>
             </div>
           </div>
         `);
+
+        $("#fb-retry-network")?.addEventListener("click", () => refreshAll(true));
+        $("#fb-open-settings2")?.addEventListener("click", () => {
+          const settingsTab = document.querySelector('.fb-tab[data-tab="settings"]');
+          if (settingsTab) settingsTab.click();
+        });
       }
+      return false;
+    } finally {
+      APP.refreshing = false;
     }
   }
 
@@ -12787,13 +12902,16 @@ function _handleActionClick() {
   window.__FRIES_BANKERS_BRIDGE__ = {
     open: function () { ensureStyles(); ensureOverlay(); openOverlay(); },
     close: function () { closeOverlay(); },
-    refresh: function () { try { refreshAll(true); } catch (_) {} }
+    refresh: function () { try { refreshAll(true); } catch (_) {} },
+    factions: function () { return (APP.factions || DEFAULT_FACTIONS).slice(); }
   };
 
   function boot() {
     if (!isTornPage()) return;
 
     ensureStyles();
+    ensureSetupButton();
+    mountCoin();
     ensureOverlay();
 
     APP.booted = true;
@@ -12803,6 +12921,8 @@ function _handleActionClick() {
     setTimeout(() => refreshAll(true), 1800);
 
     setInterval(() => {
+      mountCoin();
+  
       if (GM_getValue(K_API_KEY, "")) {
         refreshAll(false);
       }
@@ -12817,7 +12937,9 @@ function _handleActionClick() {
     const obs = new MutationObserver(() => {
       if (!isTornPage()) return;
       ensureStyles();
-      ensureOverlay();
+      ensureSetupButton();
+      mountCoin();
+        ensureOverlay();
     });
 
     obs.observe(document.documentElement || document.body, {
@@ -12839,7 +12961,8 @@ function _handleActionClick() {
 
       setTimeout(() => {
         if (isTornPage()) {
-          refreshAll(true);
+          mountCoin();
+                refreshAll(true);
         }
       }, 800);
     }

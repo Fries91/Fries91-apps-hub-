@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🍟 Fries91's Faction Apps
 // @namespace    torn.hub.fries91
-// @version      0.8.2
-// @description  One PDA/PC launcher for Fries91 Torn apps with a full-width top bar, live updates, cached fallbacks, alerts, and duplicate-icon control.
+// @version      0.8.3
+// @description  Locked top-bar Torn app hub. Apps open only from the Hub, standalone launchers stay hidden, and every app has a close control.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -33,10 +33,10 @@
 (function () {
   "use strict";
 
-  if (window.__FRIES91_FACTION_APPS_V082__) return;
-  window.__FRIES91_FACTION_APPS_V082__ = true;
+  if (window.__FRIES91_FACTION_APPS_V083__) return;
+  window.__FRIES91_FACTION_APPS_V083__ = true;
 
-  const BUILD = "0.8.2";
+  const BUILD = "0.8.3";
   const SOURCE_MAX_AGE = 6 * 60 * 60 * 1000;
   const IDS = {
     slot: "fries91-hub-slot-v080",
@@ -72,7 +72,11 @@
     sourceMode: new Map(),
     updateBusy: false,
     lastHeaderTarget: null,
+    headerLocked: false,
+    activeAppId: null,
     mountTimer: null,
+    suppressTimer: null,
+    suppressObserver: null,
     backgroundTimers: [],
     toastTimer: null
   };
@@ -86,8 +90,10 @@
       description: "War overview, enemies, hospital, chain, members, terms and admin.",
       url: "https://torn-war-bot.onrender.com/static/war-bot.user.js",
       bridge: "__FRIES_WARHUB_BRIDGE__",
-      readySelectors: ["#warhub-overlay", "#warhub-shield"],
+      readySelectors: ["#warhub-overlay", "#warhub-shield", "#warhub-badge"],
       openSelectors: ["#warhub-shield", "#warhub-badge"],
+      overlaySelectors: ["#warhub-overlay"],
+      closeSelectors: ["#warhub-close", "#warhub-overlay [data-close]", "#warhub-overlay [aria-label*='close' i]", "#warhub-overlay .close"],
       backgroundDefault: false
     },
     {
@@ -100,6 +106,8 @@
       bridge: "__FRIES_INSURANCE_BRIDGE__",
       readySelectors: ["#si-pda-overlay", "#si-pda-launcher"],
       openSelectors: ["#si-pda-launcher button", "#si-pda-launcher"],
+      overlaySelectors: ["#si-pda-overlay"],
+      closeSelectors: ["#si-pda-close", "#si-pda-overlay [data-close]", "#si-pda-overlay [aria-label*='close' i]", "#si-pda-overlay .close"],
       backgroundDefault: false
     },
     {
@@ -112,6 +120,8 @@
       bridge: "__FRIES_GIVEAWAY_BRIDGE__",
       readySelectors: ["#giveaway-overlay", "#giveaway-shield"],
       openSelectors: ["#giveaway-shield"],
+      overlaySelectors: ["#giveaway-overlay"],
+      closeSelectors: ["#giveaway-close", "#giveaway-overlay .gw-close", "#giveaway-overlay [data-close]", "#giveaway-overlay [aria-label*='close' i]"],
       backgroundDefault: false
     },
     {
@@ -122,8 +132,10 @@
       description: "Companies, trains, Hall of Fame search, notes and company keys.",
       url: "https://raw.githubusercontent.com/Fries91/Trains-Selling-Enterprise-/main/static/tse-headquarters.user.js",
       bridge: "__FRIES_COMPANY_HUB_BRIDGE__",
-      readySelectors: ["#tse-hq-overlay", "#tse-overlay", "#tse-hq-badge", "#tse-badge"],
-      openSelectors: ["#tse-hq-badge", "#tse-badge", "[id^='tse-'][id*='badge']"],
+      readySelectors: ["#tse_hq_panel", "#tse_hq_badge", "#tse-hq-overlay", "#tse-overlay"],
+      openSelectors: ["#tse_hq_badge", "#tse-hq-badge", "#tse-badge"],
+      overlaySelectors: ["#tse_hq_panel", "#tse-hq-overlay", "#tse-overlay"],
+      closeSelectors: ["#tse_hq_close", "#tse-hq-close", "#tse_hq_panel [aria-label*='close' i]"],
       backgroundDefault: false
     },
     {
@@ -135,6 +147,8 @@
       url: "https://faction-bankers-request.onrender.com/static/faction-bankers.user.js",
       readySelectors: ["#fb-overlay", "#fb-bank-coin-clean", "#fb-setup-button"],
       openSelectors: ["#fb-bank-coin-clean", "#fb-setup-button"],
+      overlaySelectors: ["#fb-overlay"],
+      closeSelectors: ["#fb-close", "#fb-overlay [data-close]", "#fb-overlay [aria-label*='close' i]"],
       backgroundDefault: true
     },
     {
@@ -146,6 +160,8 @@
       url: "https://raw.githubusercontent.com/Fries91/Assist-alert-button/main/static/assist-alert-button.user.js",
       readySelectors: ["#fries91-assist-lite-bar", "#fries91-assist-lite-toast"],
       openSelectors: ["#fries91-assist-lite-bar"],
+      overlaySelectors: ["#fries91-assist-lite-bar"],
+      closeSelectors: [],
       backgroundDefault: true,
       assistMode: true
     },
@@ -158,6 +174,8 @@
       url: "https://fries91-torn-profit-brain.onrender.com/static/torn-brain.user.js",
       readySelectors: ["#tb-panel", "#tb-icon"],
       openSelectors: ["#tb-icon"],
+      overlaySelectors: ["#tb-panel"],
+      closeSelectors: ["#tb-close", "#tb-panel [data-close]", "#tb-panel [aria-label*='close' i]", "#tb-panel .close"],
       backgroundDefault: true
     },
     {
@@ -173,6 +191,8 @@
       ],
       readySelectors: ["#tcc-native-overlay", "#tcc-native-button"],
       openSelectors: ["#tcc-native-button"],
+      overlaySelectors: ["#tcc-native-overlay"],
+      closeSelectors: ["#tcc-native-close", "#tcc-native-overlay [data-close]", "#tcc-native-overlay [aria-label*='close' i]", "#tcc-native-overlay .close"],
       backgroundDefault: true
     }
   ];
@@ -387,6 +407,8 @@
     if (appReady(app) || state.running.has(app.id)) {
       state.running.add(app.id);
       setStatus(app.id, "Ready", "good");
+      suppressStandaloneLaunchers();
+      if (!options.openAfter) setTimeout(() => closeAppSilently(app), 40);
       return { cached: false, already: true };
     }
 
@@ -429,6 +451,14 @@
       state.running.add(app.id);
       setStatus(app.id, sourceMode === "live" ? "Ready • live" : `Ready • ${sourceMode}`, "good");
       suppressStandaloneLaunchers();
+
+      // Apps that start in the background are kept closed. They may still poll
+      // and produce Hub badges, but their own panels and launchers never appear.
+      if (!options.openAfter) {
+        setTimeout(() => closeAppSilently(app), 80);
+        setTimeout(() => closeAppSilently(app), 700);
+      }
+
       syncBadges();
       return { cached: sourceMode !== "live", already: false };
     })()
@@ -471,6 +501,178 @@
     return false;
   }
 
+  function appOverlay(app) {
+    if (!app) return null;
+    return anySelector(app.overlaySelectors || []);
+  }
+
+  function elementLooksOpen(element) {
+    if (!element || !element.isConnected) return false;
+    const style = getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return false;
+    if (element.classList.contains("hidden")) return false;
+    return rect.width > 10 && rect.height > 10;
+  }
+
+  function genericCloseButton(overlay) {
+    if (!overlay) return null;
+
+    const buttons = Array.from(overlay.querySelectorAll("button,[role='button'],a"))
+      .filter((element) => !element.classList.contains("fries91-app-fallback-close"));
+
+    for (const element of buttons) {
+      const text = String(element.textContent || "").replace(/\s+/g, " ").trim();
+      const aria = String(element.getAttribute("aria-label") || "").trim();
+      const title = String(element.getAttribute("title") || "").trim();
+
+      if (/^(×|✕|x|close|close app)$/i.test(text)) return element;
+      if (/close/i.test(aria) || /close/i.test(title)) return element;
+    }
+
+    return null;
+  }
+
+  function nativeCloseButton(app, overlay) {
+    for (const selector of app?.closeSelectors || []) {
+      try {
+        const found = document.querySelector(selector);
+        if (found) return found;
+      } catch (_) {}
+    }
+    return genericCloseButton(overlay);
+  }
+
+  function clearForcedHidden(app) {
+    const overlay = appOverlay(app);
+    if (!overlay) return;
+    if (overlay.dataset.fries91ForceHidden === "1") {
+      delete overlay.dataset.fries91ForceHidden;
+      overlay.style.removeProperty("display");
+      overlay.style.removeProperty("visibility");
+      overlay.style.removeProperty("opacity");
+      overlay.style.removeProperty("pointer-events");
+    }
+  }
+
+  function bridgeClose(app) {
+    try {
+      const bridge = app?.bridge ? window[app.bridge] : null;
+      if (bridge && typeof bridge.close === "function") {
+        bridge.close();
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  function fallbackHideOverlay(app, overlay) {
+    if (!overlay) return false;
+
+    if (app?.assistMode) {
+      overlay.dataset.fries91ForceHidden = "1";
+      overlay.style.setProperty("display", "none", "important");
+      return true;
+    }
+
+    overlay.classList.remove("show", "open", "tse_open", "fb-show", "active", "visible");
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.dataset.fries91ForceHidden = "1";
+    overlay.style.setProperty("display", "none", "important");
+    overlay.style.setProperty("visibility", "hidden", "important");
+    overlay.style.setProperty("opacity", "0", "important");
+    overlay.style.setProperty("pointer-events", "none", "important");
+    return true;
+  }
+
+  function closeAppSilently(app) {
+    if (!app) return false;
+    const overlay = appOverlay(app);
+    if (!overlay || !elementLooksOpen(overlay)) return false;
+
+    if (bridgeClose(app)) return true;
+
+    const close = nativeCloseButton(app, overlay);
+    if (close) {
+      try {
+        close.click();
+        return true;
+      } catch (_) {}
+    }
+
+    return fallbackHideOverlay(app, overlay);
+  }
+
+  function closeApp(appId) {
+    const app = appById(appId || state.activeAppId);
+    if (!app) return;
+
+    const overlay = appOverlay(app);
+    let closed = bridgeClose(app);
+
+    if (!closed) {
+      const close = nativeCloseButton(app, overlay);
+      if (close) {
+        try {
+          close.click();
+          closed = true;
+        } catch (_) {}
+      }
+    }
+
+    if (!closed) closed = fallbackHideOverlay(app, overlay);
+
+    state.activeAppId = null;
+    suppressStandaloneLaunchers();
+    showToast(`${app.name} closed.`, "good");
+  }
+
+  function ensureAppCloseControl(app, attempt = 0) {
+    if (!app || attempt > 30) return;
+
+    const overlay = appOverlay(app);
+    if (!overlay) {
+      setTimeout(() => ensureAppCloseControl(app, attempt + 1), 120);
+      return;
+    }
+
+    // Keep the app's own working close button. Add a Hub close only when
+    // the app does not already provide one.
+    if (nativeCloseButton(app, overlay)) return;
+
+    let button = overlay.querySelector(`.fries91-app-fallback-close[data-app="${app.id}"]`);
+    if (!button) {
+      button = document.createElement("button");
+      button.type = "button";
+      button.className = "fries91-app-fallback-close";
+      button.dataset.app = app.id;
+      button.textContent = "×";
+      button.title = `Close ${app.name}`;
+      button.setAttribute("aria-label", `Close ${app.name}`);
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        closeApp(app.id);
+      });
+      overlay.appendChild(button);
+    }
+  }
+
+  function waitForAppOpen(app, attempt = 0) {
+    if (!app || attempt > 35) return;
+
+    const overlay = appOverlay(app);
+    if (overlay && elementLooksOpen(overlay)) {
+      state.activeAppId = app.id;
+      ensureAppCloseControl(app);
+      suppressStandaloneLaunchers();
+      return;
+    }
+
+    setTimeout(() => waitForAppOpen(app, attempt + 1), 120);
+  }
+
   function isAttackPage() {
     const value = `${location.pathname}${location.search}${location.hash}`.toLowerCase();
     return value.includes("sid=attack") || value.includes("loader.php?sid=attack");
@@ -482,21 +684,29 @@
 
     closeHub();
     try {
-      await loadApp(app);
+      await loadApp(app, { openAfter: true });
+      clearForcedHidden(app);
+      suppressStandaloneLaunchers();
 
       if (app.assistMode) {
         if (!isAttackPage()) {
-          showToast("Assist is active. It appears automatically on Torn attack pages; faction chat must be open.", "good");
+          showToast("Assist is active. Open a Torn attack page and faction chat, then open Assist from this Hub.", "good");
           return;
         }
+
         const bar = document.getElementById("fries91-assist-lite-bar");
         if (bar) {
+          bar.style.removeProperty("display");
+          bar.style.removeProperty("visibility");
+          bar.style.removeProperty("opacity");
           bar.scrollIntoView({ block: "center", behavior: "smooth" });
           bar.classList.add("fries91-hub-highlight");
           setTimeout(() => bar.classList.remove("fries91-hub-highlight"), 1600);
-          showToast("Assist button is ready on this attack page.", "good");
+          state.activeAppId = app.id;
+          ensureAppCloseControl(app);
+          showToast("Assist is open on this attack page.", "good");
         } else {
-          showToast("Assist loaded. Reopen this attack page if the button has not mounted yet.", "warn");
+          showToast("Assist loaded. Reopen the attack page once if its bar has not mounted yet.", "warn");
         }
         return;
       }
@@ -504,8 +714,11 @@
       await new Promise((resolve) => setTimeout(resolve, 120));
       const opened = bridgeOpen(app) || clickOpenSelector(app);
       if (!opened) {
-        throw new Error("The app loaded, but the Hub could not find its open button.");
+        throw new Error("The app loaded, but the Hub could not find its open control.");
       }
+
+      state.activeAppId = app.id;
+      waitForAppOpen(app);
     } catch (error) {
       console.error(`Fries91 Hub open failed for ${app.id}:`, error);
       showToast(`${app.name}: ${error.message || error}`, "bad");
@@ -791,6 +1004,7 @@
     if (!slot) {
       slot = document.createElement("div");
       slot.id = IDS.slot;
+      state.headerLocked = false;
     }
 
     if (!button) {
@@ -811,20 +1025,32 @@
 
     if (button.parentElement !== slot) slot.appendChild(button);
 
-    // Remove the temporary floating launcher from v0.8.1.
     const oldFloating = document.getElementById(IDS.fallback);
     if (oldFloating) oldFloating.remove();
+
+    // Once the bar has mounted correctly under Torn's status row, never move
+    // it during faction updates, chain refreshes, scrolling, or SPA rerenders.
+    if (state.headerLocked && slot.isConnected) {
+      button.style.removeProperty("display");
+      slot.style.removeProperty("display");
+      return true;
+    }
+
+    if (!slot.isConnected) state.headerLocked = false;
 
     const anchor = findMobileTopAnchor() || getHeaderTarget();
 
     if (anchor && placeTopBarAfter(anchor, slot)) {
       button.style.removeProperty("display");
       slot.style.removeProperty("display");
+      slot.dataset.fries91TopLocked = "1";
       state.lastHeaderTarget = anchor;
+      state.headerLocked = true;
       return true;
     }
 
-    // Guaranteed fallback: full-width bar at the top of Torn's page content.
+    // Guaranteed fallback remains at the start of Torn's main content and is
+    // also locked there, rather than being moved on every refresh.
     const contentCandidates = [
       document.querySelector("#mainContainer"),
       document.querySelector("#mainContainer > div"),
@@ -838,6 +1064,8 @@
     if (slot.parentElement !== content) content.insertBefore(slot, content.firstChild);
     button.style.removeProperty("display");
     slot.style.removeProperty("display");
+    slot.dataset.fries91TopLocked = "1";
+    state.headerLocked = true;
     return true;
   }
 
@@ -861,7 +1089,7 @@
         <div id="${IDS.status}" class="fries91-hub-status">Apps load from their official live files and keep a cached fallback.</div>
         <main id="${IDS.cards}" class="fries91-hub-cards"></main>
         <footer class="fries91-hub-footer">
-          The Hub opens from the full-width top bar. Duplicate standalone icons are hidden.
+          The top bar stays locked under Torn's status row. Apps open only from this Hub.
         </footer>
       </section>
     `;
@@ -890,25 +1118,75 @@
     document.getElementById(IDS.overlay)?.classList.remove("show");
   }
 
+  function forceHideLauncher(element) {
+    if (!element || !element.isConnected) return;
+    if (element.closest(`#${IDS.overlay}`)) return;
+
+    element.dataset.fries91HubHiddenLauncher = "1";
+    element.classList.add("fries91-hub-hidden-launcher");
+    element.setAttribute("aria-hidden", "true");
+    element.style.setProperty("display", "none", "important");
+    element.style.setProperty("visibility", "hidden", "important");
+    element.style.setProperty("opacity", "0", "important");
+    element.style.setProperty("pointer-events", "none", "important");
+    element.style.setProperty("left", "-10000px", "important");
+    element.style.setProperty("top", "-10000px", "important");
+  }
+
   function suppressStandaloneLaunchers() {
     const selectors = [
       "#warhub-shield",
       "#warhub-badge",
       "#si-pda-launcher",
       "#giveaway-shield",
+      "#tse_hq_badge",
       "#tse-hq-badge",
       "#tse-badge",
+      "[id^='tse_'][id*='badge']",
       "[id^='tse-'][id*='badge']",
       "#fb-bank-coin-clean",
       "#fb-setup-button",
+      "#fb-built-in-box",
       "#tb-icon",
       "#tcc-native-button"
     ];
 
     for (const selector of selectors) {
-      document.querySelectorAll(selector).forEach((element) => {
-        if (element.closest(`#${IDS.overlay}`)) return;
-        element.classList.add("fries91-hub-hidden-launcher");
+      try {
+        document.querySelectorAll(selector).forEach(forceHideLauncher);
+      } catch (_) {}
+    }
+
+    // Some older helper builds use a small green fixed “FF” launcher with no
+    // stable ID. Hide only tiny fixed elements whose complete label is FF.
+    document.querySelectorAll("button,div,a,span").forEach((element) => {
+      if (element.closest(`#${IDS.overlay}`)) return;
+      if (String(element.textContent || "").trim() !== "FF") return;
+
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      if (
+        (style.position === "fixed" || style.position === "absolute") &&
+        rect.width > 15 && rect.width <= 90 &&
+        rect.height > 15 && rect.height <= 90
+      ) {
+        forceHideLauncher(element);
+      }
+    });
+  }
+
+  function startLauncherSuppression() {
+    suppressStandaloneLaunchers();
+
+    if (!state.suppressTimer) {
+      state.suppressTimer = setInterval(suppressStandaloneLaunchers, 450);
+    }
+
+    if (!state.suppressObserver && document.documentElement) {
+      state.suppressObserver = new MutationObserver(() => suppressStandaloneLaunchers());
+      state.suppressObserver.observe(document.documentElement, {
+        childList: true,
+        subtree: true
       });
     }
   }
@@ -1002,7 +1280,7 @@
         box-sizing:border-box !important;
         padding:3px 5px 4px !important;
         margin:0 !important;
-        order:9999 !important;
+        order:0 !important;
         z-index:2147482000 !important;
         background:rgba(11,12,14,.96) !important;
       }
@@ -1266,13 +1544,37 @@
       #${IDS.toast}[data-kind="good"] { border-color:#34c978 !important; color:#b9f7d1 !important; }
       #${IDS.toast}[data-kind="warn"] { border-color:#e0b62f !important; color:#ffe89b !important; }
       #${IDS.toast}[data-kind="bad"] { border-color:#ef4652 !important; color:#ffc0c5 !important; }
-      .fries91-hub-hidden-launcher {
+      .fries91-hub-hidden-launcher,
+      [data-fries91-hub-hidden-launcher="1"],
+      [data-fries91-hub-hidden-launcher="true"] {
+        display:none !important;
         position:fixed !important;
         left:-10000px !important;
         top:-10000px !important;
         opacity:0 !important;
         visibility:hidden !important;
         pointer-events:none !important;
+      }
+      .fries91-app-fallback-close {
+        position:absolute !important;
+        right:8px !important;
+        top:8px !important;
+        z-index:2147483647 !important;
+        width:38px !important;
+        height:38px !important;
+        min-width:38px !important;
+        min-height:38px !important;
+        padding:0 !important;
+        display:flex !important;
+        align-items:center !important;
+        justify-content:center !important;
+        border:1px solid rgba(255,210,117,.65) !important;
+        border-radius:11px !important;
+        background:linear-gradient(180deg,#8f171c,#4b080b) !important;
+        color:white !important;
+        box-shadow:0 5px 18px rgba(0,0,0,.55) !important;
+        font:900 24px/1 Arial,sans-serif !important;
+        cursor:pointer !important;
       }
       #fries91-assist-lite-bar.fries91-hub-highlight { animation:fries91-assist-highlight .5s 3 !important; }
       @keyframes fries91-pulse { 50% { opacity:.42; transform:scale(.82); } }
@@ -1330,6 +1632,9 @@
   }
 
   function refreshMountedState() {
+    const slot = document.getElementById(IDS.slot);
+    if (!slot || !slot.isConnected) state.headerLocked = false;
+
     ensureHeaderButton();
     suppressStandaloneLaunchers();
     syncBadges();
@@ -1370,6 +1675,7 @@
     addStyles();
     mountOverlay();
     ensureHeaderButton();
+    startLauncherSuppression();
     registerMenuCommands();
 
     APPS.forEach((app) => {

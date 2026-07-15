@@ -1,86 +1,33 @@
 // ==UserScript==
-// @name         🍟 Fries91's Faction Apps
-// @namespace    torn.hub.fries91
-// @version      0.9.0
-// @description  Compact top icon bar for direct Torn app launching, with hidden standalone icons, alerts, updates, and close controls.
+// @name         🍟 Fries91's Faction Apps Installer Bar
+// @namespace    torn.installer.fries91
+// @version      1.0.0
+// @description  Compact TornPDA/PC top bar that lets faction members install only the Fries91 app they choose.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
 // @include      https://www.torn.com/*
 // @include      https://torn.com/*
 // @run-at       document-end
-// @grant        GM_addStyle
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @grant        GM_deleteValue
-// @grant        GM_xmlhttpRequest
-// @grant        GM_registerMenuCommand
-// @grant        GM_info
-// @connect      raw.githubusercontent.com
-// @connect      torn-war-bot.onrender.com
-// @connect      xanax-insurance.onrender.com
-// @connect      sinner-s-lottery.onrender.com
-// @connect      trains-selling-enterprise.onrender.com
-// @connect      faction-bankers-request.onrender.com
-// @connect      torn-banking-push.onrender.com
-// @connect      fries91-torn-profit-brain.onrender.com
-// @connect      torn-100k-chain-command.onrender.com
-// @connect      ffscouter.com
-// @connect      api.torn.com
-// @connect      *
+// @grant        none
 // ==/UserScript==
 
 (function () {
   "use strict";
 
-  if (window.__FRIES91_FACTION_APPS_V090__) return;
-  window.__FRIES91_FACTION_APPS_V090__ = true;
+  if (window.__FRIES91_APP_INSTALLER_BAR_V100__) return;
+  window.__FRIES91_APP_INSTALLER_BAR_V100__ = true;
 
-  const BUILD = "0.9.0";
-  const SOURCE_MAX_AGE = 6 * 60 * 60 * 1000;
+  const VERSION = "1.0.0";
+
   const IDS = {
-    slot: "fries91-hub-slot-v080",
-    button: "fries91-hub-button-v080",
-    buttonBadge: "fries91-hub-button-badge-v080",
-    chainLight: "fries91-hub-chain-light-v080",
-    directBankBadge: "fries91-direct-bank-badge-v090",
-    directBrainBadge: "fries91-direct-brain-badge-v090",
-    fallback: "fries91-hub-mobile-launcher-v081",
-    fallbackBadge: "fries91-hub-mobile-badge-v081",
-    fallbackChainLight: "fries91-hub-mobile-chain-light-v081",
-    overlay: "fries91-hub-overlay-v080",
-    panel: "fries91-hub-panel-v080",
-    cards: "fries91-hub-cards-v080",
-    status: "fries91-hub-status-v080",
-    toast: "fries91-hub-toast-v080",
-    style: "fries91-hub-style-v080"
-  };
-
-  const KEY = {
-    open: "fries91_hub_v080_open",
-    cachePrefix: "fries91_hub_v080_source_",
-    cacheTsPrefix: "fries91_hub_v080_source_ts_",
-    versionPrefix: "fries91_hub_v080_source_version_",
-    backgroundPrefix: "fries91_hub_v080_background_"
-  };
-
-  const state = {
-    mounted: false,
-    open: false,
-    loading: new Map(),
-    running: new Set(),
-    status: new Map(),
-    versions: new Map(),
-    sourceMode: new Map(),
-    updateBusy: false,
-    lastHeaderTarget: null,
-    headerLocked: false,
-    activeAppId: null,
-    mountTimer: null,
-    suppressTimer: null,
-    suppressObserver: null,
-    backgroundTimers: [],
-    toastTimer: null
+    slot: "fries91-installer-slot-v100",
+    bar: "fries91-installer-bar-v100",
+    overlay: "fries91-installer-overlay-v100",
+    panel: "fries91-installer-panel-v100",
+    catalog: "fries91-installer-catalog-v100",
+    style: "fries91-installer-style-v100",
+    toast: "fries91-installer-toast-v100"
   };
 
   const APPS = [
@@ -88,879 +35,91 @@
       id: "war",
       icon: "⚔️",
       name: "War & Chain",
-      known: "3.7.2+",
-      description: "War overview, enemies, hospital, chain, members, terms and admin.",
-      url: "https://torn-war-bot.onrender.com/static/war-bot.user.js",
-      bridge: "__FRIES_WARHUB_BRIDGE__",
-      readySelectors: ["#warhub-overlay", "#warhub-shield", "#warhub-badge"],
-      openSelectors: ["#warhub-shield", "#warhub-badge"],
-      overlaySelectors: ["#warhub-overlay"],
-      closeSelectors: ["#warhub-close", "#warhub-overlay [data-close]", "#warhub-overlay [aria-label*='close' i]", "#warhub-overlay .close"],
-      openDelay: 900,
-      backgroundDefault: false
+      version: "Latest live build",
+      description: "War overview, members, enemies, hospital, chain, targets, terms and administration.",
+      url: "https://torn-war-bot.onrender.com/static/war-bot.user.js"
     },
     {
       id: "insurance",
       icon: "💊",
       name: "Sinner's Insurance",
-      known: "4.0.x",
-      description: "Faction insurance plans, claims, coverage and administration.",
-      url: "https://raw.githubusercontent.com/Fries91/xanax-insurance/main/static/xanax-insurance.user.js",
-      bridge: "__FRIES_INSURANCE_BRIDGE__",
-      readySelectors: ["#si-pda-overlay", "#si-pda-launcher"],
-      openSelectors: ["#si-pda-launcher button", "#si-pda-launcher"],
-      overlaySelectors: ["#si-pda-overlay"],
-      closeSelectors: ["#si-pda-close", "#si-pda-overlay [data-close]", "#si-pda-overlay [aria-label*='close' i]", "#si-pda-overlay .close"],
-      backgroundDefault: false
+      version: "Latest live build",
+      description: "Faction insurance plans, coverage, claims and administration.",
+      url: "https://raw.githubusercontent.com/Fries91/xanax-insurance/main/static/xanax-insurance.user.js"
     },
     {
       id: "giveaway",
       icon: "🎁",
       name: "Faction Giveaway",
-      known: "1.4.4+",
-      description: "Free faction giveaway rounds, entrants, winners and wheel.",
-      url: "https://sinner-s-lottery.onrender.com/static/giveaway.user.js",
-      bridge: "__FRIES_GIVEAWAY_BRIDGE__",
-      readySelectors: ["#giveaway-overlay", "#giveaway-shield"],
-      openSelectors: ["#giveaway-shield"],
-      overlaySelectors: ["#giveaway-overlay"],
-      closeSelectors: ["#giveaway-close", "#giveaway-overlay .gw-close", "#giveaway-overlay [data-close]", "#giveaway-overlay [aria-label*='close' i]"],
-      backgroundDefault: false
+      version: "Latest live build",
+      description: "Faction giveaway rounds, entrants, winners and wheel.",
+      url: "https://sinner-s-lottery.onrender.com/static/giveaway.user.js"
     },
     {
       id: "tse",
       icon: "🚆",
       name: "T.S.E Headquarters",
-      known: "8.7.0+",
+      version: "Latest live build",
       description: "Companies, trains, Hall of Fame search, notes and company keys.",
-      url: "https://raw.githubusercontent.com/Fries91/Trains-Selling-Enterprise-/main/static/tse-headquarters.user.js",
-      bridge: "__FRIES_COMPANY_HUB_BRIDGE__",
-      readySelectors: ["#tse_hq_panel", "#tse_hq_badge", "#tse-hq-overlay", "#tse-overlay"],
-      openSelectors: ["#tse_hq_badge", "#tse-hq-badge", "#tse-badge"],
-      overlaySelectors: ["#tse_hq_panel", "#tse-hq-overlay", "#tse-overlay"],
-      closeSelectors: ["#tse_hq_close", "#tse-hq-close", "#tse_hq_panel [aria-label*='close' i]"],
-      backgroundDefault: false
+      url: "https://raw.githubusercontent.com/Fries91/Trains-Selling-Enterprise-/main/static/tse-headquarters.user.js"
     },
     {
       id: "bankers",
       icon: "🪙",
       name: "Faction Bankers",
-      known: "1.6.4+",
-      description: "Bank requests, banker alerts, balances and completion history.",
-      url: "https://faction-bankers-request.onrender.com/static/faction-bankers.user.js",
-      readySelectors: ["#fb-overlay", "#fb-bank-coin-clean", "#fb-setup-button"],
-      openSelectors: ["#fb-bank-coin-clean", "#fb-setup-button"],
-      overlaySelectors: ["#fb-overlay"],
-      closeSelectors: ["#fb-close", "#fb-overlay [data-close]", "#fb-overlay [aria-label*='close' i]"],
-      backgroundDefault: true
+      version: "Latest live build",
+      description: "Bank requests, banker alerts, balances and completed-request history.",
+      url: "https://faction-bankers-request.onrender.com/static/faction-bankers.user.js"
     },
     {
       id: "assist",
       icon: "🆘",
       name: "Assist Button",
-      known: "3.7.0",
-      description: "One-tap faction assist call on Torn attack pages with single-send lock.",
-      url: "https://raw.githubusercontent.com/Fries91/Assist-alert-button/main/static/assist-alert-button.user.js",
-      readySelectors: ["#fries91-assist-lite-bar", "#fries91-assist-lite-toast"],
-      openSelectors: ["#fries91-assist-lite-bar"],
-      overlaySelectors: ["#fries91-assist-lite-bar"],
-      closeSelectors: [],
-      backgroundDefault: true,
-      assistMode: true
+      version: "Latest live build",
+      description: "One-tap faction assist message on Torn attack pages.",
+      url: "https://raw.githubusercontent.com/Fries91/Assist-alert-button/main/static/assist-alert-button.user.js"
     },
     {
       id: "brain",
       icon: "🧠",
       name: "AI Brain",
-      known: "1.10.16+",
+      version: "Latest live build",
       description: "Stock, item, travel-profit and smart market learning tools.",
-      url: "https://fries91-torn-profit-brain.onrender.com/static/torn-brain.user.js",
-      readySelectors: ["#tb-panel", "#tb-icon"],
-      openSelectors: ["#tb-icon"],
-      overlaySelectors: ["#tb-panel"],
-      closeSelectors: ["#tb-close", "#tb-panel [data-close]", "#tb-panel [aria-label*='close' i]", "#tb-panel .close"],
-      backgroundDefault: true
+      url: "https://fries91-torn-profit-brain.onrender.com/static/torn-brain.user.js"
     },
     {
       id: "chain100k",
       icon: "⛓️",
       name: "100K Chain Command",
-      known: "2.1.4+",
+      version: "Latest live build",
       description: "Live chain timer, members, watcher scheduling and milestones.",
-      url: "https://torn-100k-chain-command.onrender.com/chain-command.user.js",
-      alternateUrls: [
-        "https://torn-100k-chain-command.onrender.com/static/chain-command.user.js",
-        "https://torn-100k-chain-command.onrender.com/public/chain-command.user.js"
-      ],
-      readySelectors: ["#tcc-native-overlay", "#tcc-native-button"],
-      openSelectors: ["#tcc-native-button"],
-      overlaySelectors: ["#tcc-native-overlay"],
-      closeSelectors: ["#tcc-native-close", "#tcc-native-overlay [data-close]", "#tcc-native-overlay [aria-label*='close' i]", "#tcc-native-overlay .close"],
-      backgroundDefault: true
+      url: "https://torn-100k-chain-command.onrender.com/chain-command.user.js"
     }
   ];
 
-  function gv(key, fallback) {
-    try { return GM_getValue(key, fallback); } catch (_) { return fallback; }
-  }
-
-  function sv(key, value) {
-    try { GM_setValue(key, value); } catch (_) {}
-  }
-
-  function dv(key) {
-    try { GM_deleteValue(key); } catch (_) {}
-  }
-
-  function esc(value) {
-    return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    })[char]);
-  }
+  const state = {
+    locked: false,
+    lastAnchor: null,
+    toastTimer: null,
+    interval: null,
+    observer: null
+  };
 
   function appById(id) {
     return APPS.find((app) => app.id === id);
   }
 
-  function backgroundEnabled(app) {
-    return Boolean(gv(KEY.backgroundPrefix + app.id, app.backgroundDefault));
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[character]);
   }
 
-  function setBackgroundEnabled(app, enabled) {
-    sv(KEY.backgroundPrefix + app.id, Boolean(enabled));
-  }
-
-  function anySelector(selectors) {
-    for (const selector of selectors || []) {
-      try {
-        const element = document.querySelector(selector);
-        if (element) return element;
-      } catch (_) {}
-    }
-    return null;
-  }
-
-  function appReady(app) {
-    if (!app) return false;
-    try {
-      if (app.bridge && window[app.bridge] && typeof window[app.bridge].open === "function") return true;
-    } catch (_) {}
-    return Boolean(anySelector(app.readySelectors));
-  }
-
-  function setStatus(appId, text, kind = "normal") {
-    state.status.set(appId, { text, kind });
-    renderCards();
-  }
-
-  function showHubStatus(text, kind = "normal") {
-    const element = document.getElementById(IDS.status);
-    if (!element) return;
-    element.textContent = text || "";
-    element.dataset.kind = kind;
-  }
-
-  function showToast(text, kind = "normal") {
-    let toast = document.getElementById(IDS.toast);
-    if (!toast) {
-      toast = document.createElement("div");
-      toast.id = IDS.toast;
-      document.body.appendChild(toast);
-    }
-    toast.textContent = text;
-    toast.dataset.kind = kind;
-    toast.classList.add("show");
-    clearTimeout(state.toastTimer);
-    state.toastTimer = setTimeout(() => toast.classList.remove("show"), 4200);
-  }
-
-  function requestText(url) {
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      const finish = (fn, value) => {
-        if (settled) return;
-        settled = true;
-        fn(value);
-      };
-
-      try {
-        GM_xmlhttpRequest({
-          method: "GET",
-          url,
-          timeout: 30000,
-          headers: { Accept: "text/javascript,text/plain,*/*" },
-          onload: (response) => {
-            const text = String(response.responseText || "");
-            if (response.status >= 200 && response.status < 300 && text.length > 200) {
-              finish(resolve, { text, url });
-            } else {
-              finish(reject, new Error(`HTTP ${response.status || 0}`));
-            }
-          },
-          onerror: () => finish(reject, new Error("Network error")),
-          ontimeout: () => finish(reject, new Error("Request timed out"))
-        });
-      } catch (error) {
-        finish(reject, error);
-      }
-    });
-  }
-
-  async function fetchAppSource(app) {
-    const urls = [app.url, ...(app.alternateUrls || [])];
-    let lastError = null;
-
-    for (const url of urls) {
-      try {
-        const result = await requestText(url);
-        if (!/==UserScript==|^\s*\(function|^\s*["']use strict/m.test(result.text)) {
-          throw new Error("The downloaded file was not a userscript.");
-        }
-        return result;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    throw lastError || new Error("No working source URL.");
-  }
-
-  function extractVersion(source) {
-    const match = String(source || "").match(/^\s*\/\/\s*@version\s+([^\r\n]+)/m);
-    return match ? match[1].trim() : "live";
-  }
-
-  function stripMetadata(source) {
-    return String(source || "")
-      .replace(/^\uFEFF/, "")
-      .replace(/^\s*\/\/\s*==UserScript==[\s\S]*?^\s*\/\/\s*==\/UserScript==\s*/m, "");
-  }
-
-  function cacheSource(app, source) {
-    sv(KEY.cachePrefix + app.id, source);
-    sv(KEY.cacheTsPrefix + app.id, Date.now());
-    const version = extractVersion(source);
-    sv(KEY.versionPrefix + app.id, version);
-    state.versions.set(app.id, version);
-  }
-
-  function cachedSource(app) {
-    return String(gv(KEY.cachePrefix + app.id, "") || "");
-  }
-
-  function cachedTimestamp(app) {
-    return Number(gv(KEY.cacheTsPrefix + app.id, 0)) || 0;
-  }
-
-  function executeSource(app, source) {
-    const body = stripMetadata(source);
-    if (!body || body.length < 100) throw new Error("The app source was empty.");
-
-    const tagged = `${body}\n//# sourceURL=fries91-hub-${app.id}.user.js`;
-    try {
-      eval(tagged);
-      return;
-    } catch (firstError) {
-      try {
-        const runner = new Function(
-          "GM_addStyle",
-          "GM_getValue",
-          "GM_setValue",
-          "GM_deleteValue",
-          "GM_xmlhttpRequest",
-          "GM_registerMenuCommand",
-          "GM_info",
-          tagged
-        );
-        runner(
-          typeof GM_addStyle === "function" ? GM_addStyle : undefined,
-          typeof GM_getValue === "function" ? GM_getValue : undefined,
-          typeof GM_setValue === "function" ? GM_setValue : undefined,
-          typeof GM_deleteValue === "function" ? GM_deleteValue : undefined,
-          typeof GM_xmlhttpRequest === "function" ? GM_xmlhttpRequest : undefined,
-          typeof GM_registerMenuCommand === "function" ? GM_registerMenuCommand : undefined,
-          typeof GM_info !== "undefined" ? GM_info : undefined
-        );
-      } catch (secondError) {
-        console.error(`Fries91 Hub could not execute ${app.id}:`, firstError, secondError);
-        throw secondError;
-      }
-    }
-  }
-
-  function waitForReady(app, timeout = 15000) {
-    return new Promise((resolve, reject) => {
-      const started = Date.now();
-      const tick = () => {
-        if (appReady(app)) {
-          resolve(true);
-          return;
-        }
-        if (Date.now() - started >= timeout) {
-          reject(new Error("App started but its launcher did not appear."));
-          return;
-        }
-        setTimeout(tick, 250);
-      };
-      tick();
-    });
-  }
-
-  async function loadApp(app, options = {}) {
-    if (!app) throw new Error("Unknown app.");
-    if (appReady(app) || state.running.has(app.id)) {
-      state.running.add(app.id);
-      setStatus(app.id, "Ready", "good");
-      if (!options.openAfter) {
-        suppressStandaloneLaunchers();
-        setTimeout(() => closeAppSilently(app), 40);
-      }
-      return { cached: false, already: true };
-    }
-
-    if (state.loading.has(app.id)) return state.loading.get(app.id);
-
-    const promise = (async () => {
-      setStatus(app.id, "Loading…", "loading");
-
-      let source = "";
-      let sourceMode = "live";
-      const cache = cachedSource(app);
-      const cacheFresh = cache && Date.now() - cachedTimestamp(app) < SOURCE_MAX_AGE;
-
-      if (!options.forceNetwork && cacheFresh) {
-        source = cache;
-        sourceMode = "cached";
-      } else {
-        try {
-          const result = await fetchAppSource(app);
-          source = result.text;
-          sourceMode = "live";
-          cacheSource(app, source);
-        } catch (networkError) {
-          if (!cache) throw networkError;
-          source = cache;
-          sourceMode = "cached fallback";
-        }
-      }
-
-      state.versions.set(app.id, extractVersion(source));
-      state.sourceMode.set(app.id, sourceMode);
-      executeSource(app, source);
-
-      try {
-        await waitForReady(app, app.assistMode ? 5500 : 16000);
-      } catch (readyError) {
-        if (!app.assistMode) throw readyError;
-      }
-
-      state.running.add(app.id);
-      setStatus(app.id, sourceMode === "live" ? "Ready • live" : `Ready • ${sourceMode}`, "good");
-
-      // Apps that start in the background are kept closed and hidden. When the
-      // user presses Open, suppression waits until the internal launcher has
-      // opened the app panel.
-      if (!options.openAfter) {
-        suppressStandaloneLaunchers();
-        setTimeout(() => closeAppSilently(app), 80);
-        setTimeout(() => closeAppSilently(app), 700);
-      }
-
-      syncBadges();
-      return { cached: sourceMode !== "live", already: false };
-    })()
-      .catch((error) => {
-        setStatus(app.id, `Error: ${error.message || error}`, "bad");
-        throw error;
-      })
-      .finally(() => {
-        state.loading.delete(app.id);
-      });
-
-    state.loading.set(app.id, promise);
-    return promise;
-  }
-
-  function prepareLauncherForInternalClick(element) {
-    if (!element) return;
-
-    element.dataset.fries91HubOpenExempt = "1";
-    delete element.dataset.fries91HubHiddenLauncher;
-    element.classList.remove("fries91-hub-hidden-launcher");
-    element.removeAttribute("aria-hidden");
-
-    // Restore only long enough for the app's own event handler to initialize
-    // and receive the internal click. It remains visually transparent.
-    element.style.setProperty("display", "block", "important");
-    element.style.setProperty("visibility", "visible", "important");
-    element.style.setProperty("opacity", "0", "important");
-    element.style.setProperty("pointer-events", "none", "important");
-    element.style.setProperty("position", "fixed", "important");
-    element.style.setProperty("left", "-10000px", "important");
-    element.style.setProperty("top", "-10000px", "important");
-  }
-
-  function finishInternalLauncherClick(element) {
-    if (!element) return;
-    delete element.dataset.fries91HubOpenExempt;
-    forceHideLauncher(element);
-  }
-
-  async function clickOpenSelector(app) {
-    const delay = Number(app?.openDelay || 220);
-    let element = anySelector(app.openSelectors);
-
-    if (!element) {
-      // Some apps create the launcher one animation frame after reporting ready.
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      element = anySelector(app.openSelectors);
-    }
-
-    if (!element) return false;
-
-    prepareLauncherForInternalClick(element);
-    await new Promise((resolve) => setTimeout(resolve, delay));
-
-    // Re-read it in case the app replaced its launcher while initializing.
-    const newest = anySelector(app.openSelectors) || element;
-    if (newest !== element) {
-      finishInternalLauncherClick(element);
-      element = newest;
-      prepareLauncherForInternalClick(element);
-      await new Promise((resolve) => setTimeout(resolve, 120));
-    }
-
-    let clicked = false;
-    try {
-      element.click();
-      clicked = true;
-    } catch (_) {
-      try {
-        element.dispatchEvent(new MouseEvent("click", {
-          bubbles: true,
-          cancelable: true,
-          view: window
-        }));
-        clicked = true;
-      } catch (_) {}
-    }
-
-    // Give the app enough time to create/open its panel before hiding the
-    // standalone launcher again.
-    setTimeout(() => {
-      finishInternalLauncherClick(element);
-      suppressStandaloneLaunchers();
-    }, app?.id === "war" ? 1600 : 700);
-
-    return clicked;
-  }
-
-  function bridgeOpen(app) {
-    try {
-      const bridge = app.bridge ? window[app.bridge] : null;
-      if (bridge && typeof bridge.open === "function") {
-        bridge.open();
-        return true;
-      }
-    } catch (_) {}
-    return false;
-  }
-
-  function appOverlay(app) {
-    if (!app) return null;
-    return anySelector(app.overlaySelectors || []);
-  }
-
-  function elementLooksOpen(element) {
-    if (!element || !element.isConnected) return false;
-    const style = getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return false;
-    if (element.classList.contains("hidden")) return false;
-    return rect.width > 10 && rect.height > 10;
-  }
-
-  function genericCloseButton(overlay) {
-    if (!overlay) return null;
-
-    const buttons = Array.from(overlay.querySelectorAll("button,[role='button'],a"))
-      .filter((element) => !element.classList.contains("fries91-app-fallback-close"));
-
-    for (const element of buttons) {
-      const text = String(element.textContent || "").replace(/\s+/g, " ").trim();
-      const aria = String(element.getAttribute("aria-label") || "").trim();
-      const title = String(element.getAttribute("title") || "").trim();
-
-      if (/^(×|✕|x|close|close app)$/i.test(text)) return element;
-      if (/close/i.test(aria) || /close/i.test(title)) return element;
-    }
-
-    return null;
-  }
-
-  function nativeCloseButton(app, overlay) {
-    for (const selector of app?.closeSelectors || []) {
-      try {
-        const found = document.querySelector(selector);
-        if (found) return found;
-      } catch (_) {}
-    }
-    return genericCloseButton(overlay);
-  }
-
-  function clearForcedHidden(app) {
-    const overlay = appOverlay(app);
-    if (!overlay) return;
-    if (overlay.dataset.fries91ForceHidden === "1") {
-      delete overlay.dataset.fries91ForceHidden;
-      overlay.style.removeProperty("display");
-      overlay.style.removeProperty("visibility");
-      overlay.style.removeProperty("opacity");
-      overlay.style.removeProperty("pointer-events");
-    }
-  }
-
-  function bridgeClose(app) {
-    try {
-      const bridge = app?.bridge ? window[app.bridge] : null;
-      if (bridge && typeof bridge.close === "function") {
-        bridge.close();
-        return true;
-      }
-    } catch (_) {}
-    return false;
-  }
-
-  function fallbackHideOverlay(app, overlay) {
-    if (!overlay) return false;
-
-    if (app?.assistMode) {
-      overlay.dataset.fries91ForceHidden = "1";
-      overlay.style.setProperty("display", "none", "important");
-      return true;
-    }
-
-    overlay.classList.remove("show", "open", "tse_open", "fb-show", "active", "visible");
-    overlay.classList.add("hidden");
-    overlay.setAttribute("aria-hidden", "true");
-    overlay.dataset.fries91ForceHidden = "1";
-    overlay.style.setProperty("display", "none", "important");
-    overlay.style.setProperty("visibility", "hidden", "important");
-    overlay.style.setProperty("opacity", "0", "important");
-    overlay.style.setProperty("pointer-events", "none", "important");
-    return true;
-  }
-
-  function closeAppSilently(app) {
-    if (!app) return false;
-    const overlay = appOverlay(app);
-    if (!overlay || !elementLooksOpen(overlay)) return false;
-
-    if (bridgeClose(app)) return true;
-
-    const close = nativeCloseButton(app, overlay);
-    if (close) {
-      try {
-        close.click();
-        return true;
-      } catch (_) {}
-    }
-
-    return fallbackHideOverlay(app, overlay);
-  }
-
-  function closeApp(appId) {
-    const app = appById(appId || state.activeAppId);
-    if (!app) return;
-
-    const overlay = appOverlay(app);
-    let closed = bridgeClose(app);
-
-    if (!closed) {
-      const close = nativeCloseButton(app, overlay);
-      if (close) {
-        try {
-          close.click();
-          closed = true;
-        } catch (_) {}
-      }
-    }
-
-    if (!closed) closed = fallbackHideOverlay(app, overlay);
-
-    state.activeAppId = null;
-    suppressStandaloneLaunchers();
-    showToast(`${app.name} closed.`, "good");
-  }
-
-  function ensureAppCloseControl(app, attempt = 0) {
-    if (!app || attempt > 30) return;
-
-    const overlay = appOverlay(app);
-    if (!overlay) {
-      setTimeout(() => ensureAppCloseControl(app, attempt + 1), 120);
-      return;
-    }
-
-    // Keep the app's own working close button. Add a Hub close only when
-    // the app does not already provide one.
-    if (nativeCloseButton(app, overlay)) return;
-
-    let button = overlay.querySelector(`.fries91-app-fallback-close[data-app="${app.id}"]`);
-    if (!button) {
-      button = document.createElement("button");
-      button.type = "button";
-      button.className = "fries91-app-fallback-close";
-      button.dataset.app = app.id;
-      button.textContent = "×";
-      button.title = `Close ${app.name}`;
-      button.setAttribute("aria-label", `Close ${app.name}`);
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        closeApp(app.id);
-      });
-      overlay.appendChild(button);
-    }
-  }
-
-  function waitForAppOpen(app, attempt = 0) {
-    if (!app) return;
-
-    const overlay = appOverlay(app);
-    if (overlay && elementLooksOpen(overlay)) {
-      state.activeAppId = app.id;
-      ensureAppCloseControl(app);
-      suppressStandaloneLaunchers();
-      return;
-    }
-
-    if (attempt === 18 && app.id === "war") {
-      // One controlled retry for War & Chain after the script has fully mounted.
-      clickOpenSelector(app).catch(() => {});
-    }
-
-    if (attempt > 45) {
-      suppressStandaloneLaunchers();
-      showToast(`${app.name} did not open. Close and reopen the Hub, then try once more.`, "bad");
-      return;
-    }
-
-    setTimeout(() => waitForAppOpen(app, attempt + 1), 140);
-  }
-
-  function isAttackPage() {
-    const value = `${location.pathname}${location.search}${location.hash}`.toLowerCase();
-    return value.includes("sid=attack") || value.includes("loader.php?sid=attack");
-  }
-
-  async function openApp(appId) {
-    const app = appById(appId);
-    if (!app) return;
-
-    closeHub();
-    try {
-      await loadApp(app, { openAfter: true });
-      clearForcedHidden(app);
-
-      if (app.assistMode) {
-        if (!isAttackPage()) {
-          showToast("Assist is active. Open a Torn attack page and faction chat, then open Assist from this Hub.", "good");
-          return;
-        }
-
-        const bar = document.getElementById("fries91-assist-lite-bar");
-        if (bar) {
-          bar.style.removeProperty("display");
-          bar.style.removeProperty("visibility");
-          bar.style.removeProperty("opacity");
-          bar.scrollIntoView({ block: "center", behavior: "smooth" });
-          bar.classList.add("fries91-hub-highlight");
-          setTimeout(() => bar.classList.remove("fries91-hub-highlight"), 1600);
-          state.activeAppId = app.id;
-          ensureAppCloseControl(app);
-          showToast("Assist is open on this attack page.", "good");
-        } else {
-          showToast("Assist loaded. Reopen the attack page once if its bar has not mounted yet.", "warn");
-        }
-        return;
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 160));
-
-      let opened = bridgeOpen(app);
-      if (!opened) opened = await clickOpenSelector(app);
-
-      if (!opened) {
-        throw new Error("The app loaded, but the Hub could not activate its internal open control.");
-      }
-
-      state.activeAppId = app.id;
-      waitForAppOpen(app);
-    } catch (error) {
-      console.error(`Fries91 Hub open failed for ${app.id}:`, error);
-      showToast(`${app.name}: ${error.message || error}`, "bad");
-      openHub();
-    }
-  }
-
-  async function updateOneSource(app, silent = false) {
-    try {
-      if (!silent) setStatus(app.id, "Checking update…", "loading");
-      const result = await fetchAppSource(app);
-      cacheSource(app, result.text);
-      state.sourceMode.set(app.id, "updated cache");
-      const version = extractVersion(result.text);
-
-      if (appReady(app)) {
-        setStatus(app.id, `v${version} saved • reload Torn to apply`, "warn");
-      } else {
-        setStatus(app.id, `v${version} saved`, "good");
-      }
-      return { ok: true, version };
-    } catch (error) {
-      const hasCache = Boolean(cachedSource(app));
-      setStatus(
-        app.id,
-        hasCache ? "Live check failed • cached copy kept" : `Update error: ${error.message || error}`,
-        hasCache ? "warn" : "bad"
-      );
-      return { ok: false, error };
-    }
-  }
-
-  async function updateAllSources() {
-    if (state.updateBusy) return;
-    state.updateBusy = true;
-    showHubStatus("Checking all eight app sources…", "loading");
-    renderCards();
-
-    let success = 0;
-    for (const app of APPS) {
-      const result = await updateOneSource(app, false);
-      if (result.ok) success += 1;
-    }
-
-    state.updateBusy = false;
-    showHubStatus(
-      success === APPS.length
-        ? "All app sources are updated. Reload Torn once to apply updates to apps already running."
-        : `${success}/${APPS.length} sources updated. Cached copies were kept for any sleeping service.`,
-      success === APPS.length ? "good" : "warn"
-    );
-    renderCards();
-  }
-
-  function sourceVersion(app) {
-    return state.versions.get(app.id)
-      || String(gv(KEY.versionPrefix + app.id, "") || "")
-      || app.known;
-  }
-
-  function cardStatus(app) {
-    if (state.loading.has(app.id)) return { text: "Loading…", kind: "loading" };
-    const current = state.status.get(app.id);
-    if (current) return current;
-    if (appReady(app)) return { text: "Ready", kind: "good" };
-    if (cachedSource(app)) return { text: "Update cached", kind: "normal" };
-    return { text: "Not loaded", kind: "normal" };
-  }
-
-  function renderCards() {
-    const cards = document.getElementById(IDS.cards);
-    if (!cards) return;
-
-    cards.innerHTML = APPS.map((app) => {
-      const status = cardStatus(app);
-      const isBackground = backgroundEnabled(app);
-      const badge = app.id === "bankers"
-        ? `<span class="fries91-card-alert" id="fries91-card-bank-badge" hidden>0</span>`
-        : app.id === "brain"
-          ? `<span class="fries91-card-alert brain" id="fries91-card-brain-badge" hidden>0</span>`
-          : app.id === "chain100k"
-            ? `<span class="fries91-chain-card-state" id="fries91-chain-card-state">•</span>`
-            : "";
-
-      return `
-        <article class="fries91-app-card" data-app="${esc(app.id)}">
-          <div class="fries91-card-main">
-            <div class="fries91-card-icon">${app.icon}${badge}</div>
-            <div class="fries91-card-copy">
-              <strong>${esc(app.name)}</strong>
-              <span>${esc(app.description)}</span>
-              <small>Known/live version: ${esc(sourceVersion(app))}</small>
-            </div>
-          </div>
-          <div class="fries91-card-bottom">
-            <span class="fries91-card-status" data-kind="${esc(status.kind)}">${esc(status.text)}</span>
-            <div class="fries91-card-actions">
-              ${app.backgroundDefault ? `
-                <label class="fries91-background-toggle" title="Run this app in the background for alerts">
-                  <input type="checkbox" data-background="${esc(app.id)}" ${isBackground ? "checked" : ""}>
-                  <span>Alerts</span>
-                </label>
-              ` : ""}
-              <button type="button" class="fries91-open-app" data-open="${esc(app.id)}">Open</button>
-            </div>
-          </div>
-        </article>
-      `;
-    }).join("");
-
-    cards.querySelectorAll("[data-open]").forEach((button) => {
-      button.addEventListener("click", () => openApp(button.dataset.open));
-    });
-
-    cards.querySelectorAll("[data-background]").forEach((input) => {
-      input.addEventListener("change", async () => {
-        const app = appById(input.dataset.background);
-        if (!app) return;
-        setBackgroundEnabled(app, input.checked);
-        if (input.checked) {
-          try {
-            await loadApp(app);
-            showToast(`${app.name} background alerts are active.`, "good");
-          } catch (error) {
-            showToast(`${app.name}: ${error.message || error}`, "bad");
-          }
-        } else {
-          showToast(`${app.name} will stop background-starting after the next Torn reload.`, "warn");
-        }
-      });
-    });
-
-    syncBadges();
-  }
-
-  function getHeaderTarget() {
-    const candidates = Array.from(document.querySelectorAll("div,section,header,nav,ul"));
-    let best = null;
-    let bestScore = Infinity;
-
-    for (const element of candidates) {
-      if (!element || element.id === IDS.slot || element.closest(`#${IDS.overlay}`)) continue;
-      const rect = element.getBoundingClientRect();
-      if (rect.width < 240 || rect.height < 18 || rect.height > 230) continue;
-      if (rect.bottom < 0 || rect.top > 420) continue;
-
-      const text = String(element.innerText || element.textContent || "").replace(/\s+/g, " ").trim();
-      const hasMoney = text.includes("$") || /\bMoney\b/i.test(text);
-      const hasPoints = /\bPoints?\b/i.test(text) || /\bP\s*[\d,]+/i.test(text);
-      const hasMerits = /\bMerits?\b/i.test(text) || /\bM\s*[\d,]+/i.test(text);
-      if (!hasMoney && !hasPoints && !hasMerits) continue;
-
-      let score = text.length + Math.abs(rect.top);
-      if (hasMoney) score -= 220;
-      if (hasPoints) score -= 90;
-      if (hasMerits) score -= 90;
-      if (score < bestScore) {
-        best = element;
-        bestScore = score;
-      }
-    }
-    return best;
-  }
-
-  function visibleForMount(element) {
+  function visible(element) {
     if (!element) return false;
     const rect = element.getBoundingClientRect();
     const style = getComputedStyle(element);
@@ -974,19 +133,17 @@
     );
   }
 
-  function findMobileTopAnchor() {
-    const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-
-    // First choice: Torn's money / points / merits row.
-    const all = Array.from(document.querySelectorAll("div,section,header,nav,ul,li"));
+  function findTopAnchor() {
+    const width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    const elements = Array.from(document.querySelectorAll("div,section,header,nav,ul,li"));
     const scored = [];
 
-    for (const element of all) {
-      if (!visibleForMount(element)) continue;
-      if (element.closest(`#${IDS.overlay}`) || element.id === IDS.slot || element.id === IDS.button) continue;
+    for (const element of elements) {
+      if (!visible(element)) continue;
+      if (element.closest(`#${IDS.overlay}`) || element.id === IDS.slot || element.id === IDS.bar) continue;
 
       const rect = element.getBoundingClientRect();
-      if (rect.width < Math.min(260, viewportWidth * 0.72)) continue;
+      if (rect.width < Math.min(260, width * 0.72)) continue;
       if (rect.top < 120 || rect.top > 620) continue;
       if (rect.height < 20 || rect.height > 115) continue;
 
@@ -997,39 +154,34 @@
       if (!text || text.length > 320) continue;
 
       const hasMoney = /\$\s*[\d,.]+[kmbt]?/i.test(text);
-      const hasPointsNumber = /(?:^|\s)P?\s*\d{1,6}(?:\s|$)/i.test(text);
       const hasGender = /[♂♀]/.test(text);
-      const hasIcons = element.querySelectorAll("img,svg").length >= 2;
-      const likelyStatusRow =
-        hasMoney ||
-        (hasPointsNumber && hasGender) ||
-        (hasGender && hasIcons);
+      const iconCount = element.querySelectorAll("img,svg").length;
+      const hasIcons = iconCount >= 2;
 
-      if (!likelyStatusRow) continue;
+      if (!hasMoney && !(hasGender && hasIcons)) continue;
 
       let score = 0;
       if (hasMoney) score += 100;
       if (hasGender) score += 45;
       if (hasIcons) score += 25;
-      if (rect.width > viewportWidth * 0.9) score += 50;
+      if (rect.width > width * 0.9) score += 50;
       if (rect.height <= 65) score += 25;
       score -= Math.abs(rect.top - 400) * 0.08;
       score -= text.length * 0.04;
 
-      scored.push({ element, score, rect });
+      scored.push({ element, score });
     }
 
     scored.sort((a, b) => b.score - a.score);
     if (scored[0]) return scored[0].element;
 
-    // Second choice: the lowest wide Torn navigation/status row near the top.
-    const fallbackCandidates = all
-      .filter(visibleForMount)
+    const fallback = elements
+      .filter(visible)
       .filter((element) => {
-        if (element.closest(`#${IDS.overlay}`) || element.id === IDS.slot || element.id === IDS.button) return false;
+        if (element.closest(`#${IDS.overlay}`) || element.id === IDS.slot || element.id === IDS.bar) return false;
         const rect = element.getBoundingClientRect();
         return (
-          rect.width >= Math.min(280, viewportWidth * 0.78) &&
+          rect.width >= Math.min(280, width * 0.78) &&
           rect.top >= 160 &&
           rect.top <= 560 &&
           rect.height >= 24 &&
@@ -1038,16 +190,15 @@
       })
       .sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
 
-    return fallbackCandidates[0] || null;
+    return fallback[0] || null;
   }
 
-  function placeTopBarAfter(anchor, slot) {
+  function placeAfter(anchor, slot) {
     if (!anchor || !anchor.parentElement) return false;
 
     let mountAnchor = anchor;
 
-    // Walk upward until the element is close to full page width, but avoid huge page containers.
-    for (let i = 0; i < 4 && mountAnchor.parentElement; i += 1) {
+    for (let index = 0; index < 4 && mountAnchor.parentElement; index += 1) {
       const currentRect = mountAnchor.getBoundingClientRect();
       const parent = mountAnchor.parentElement;
       const parentRect = parent.getBoundingClientRect();
@@ -1069,104 +220,76 @@
     if (slot.parentElement !== parent || slot.previousElementSibling !== mountAnchor) {
       parent.insertBefore(slot, mountAnchor.nextSibling);
     }
+
     return true;
   }
 
-  function directBarItems() {
-    return [
-      { appId: "war", icon: "⚔️", label: "War & Chain" },
-      { appId: "insurance", icon: "💊", label: "Sinner's Insurance" },
-      { appId: "giveaway", icon: "🎁", label: "Faction Giveaway" },
-      { appId: "tse", icon: "🚆", label: "T.S.E Headquarters" },
-      { appId: "bankers", icon: "🪙", label: "Faction Bankers", badgeId: IDS.directBankBadge },
-      { appId: "assist", icon: "🆘", label: "Assist Button" },
-      { appId: "brain", icon: "🧠", label: "AI Brain", badgeId: IDS.directBrainBadge },
-      { appId: "chain100k", icon: "⛓️", label: "100K Chain Command", chainLight: true }
-    ];
-  }
-
-  function buildDirectIconBar(bar) {
-    bar.innerHTML = "";
-
-    for (const item of directBarItems()) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "fries91-direct-app-button";
-      button.dataset.app = item.appId;
-      button.title = item.label;
-      button.setAttribute("aria-label", `Open ${item.label}`);
-      button.innerHTML = `
-        ${item.chainLight ? `<span id="${IDS.chainLight}" class="fries91-direct-chain-light"></span>` : ""}
-        <span class="fries91-direct-icon">${item.icon}</span>
-        ${item.badgeId ? `<span id="${item.badgeId}" class="fries91-direct-badge" hidden>0</span>` : ""}
-      `;
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        openApp(item.appId);
-      });
-      bar.appendChild(button);
-    }
-
-    const hubButton = document.createElement("button");
-    hubButton.type = "button";
-    hubButton.className = "fries91-direct-app-button fries91-direct-hub-button";
-    hubButton.title = "Open full Fries91 App Hub";
-    hubButton.setAttribute("aria-label", "Open full Fries91 App Hub");
-    hubButton.innerHTML = `
-      <span class="fries91-direct-icon">🍟</span>
-      <span id="${IDS.buttonBadge}" class="fries91-direct-badge fries91-direct-total-badge" hidden>0</span>
-    `;
-    hubButton.addEventListener("click", (event) => {
+  function makeIconButton(item) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "fries91-installer-icon-button";
+    button.dataset.app = item.id;
+    button.title = `Install ${item.name}`;
+    button.setAttribute("aria-label", `Install ${item.name}`);
+    button.innerHTML = `<span>${item.icon}</span>`;
+    button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      openHub();
+      openInstallCard(item.id);
     });
-    bar.appendChild(hubButton);
+    return button;
   }
 
-  function ensureHeaderButton() {
+  function buildBar(bar) {
+    bar.innerHTML = "";
+
+    for (const app of APPS) {
+      bar.appendChild(makeIconButton(app));
+    }
+
+    const catalogButton = document.createElement("button");
+    catalogButton.type = "button";
+    catalogButton.className = "fries91-installer-icon-button fries91-installer-catalog-button";
+    catalogButton.title = "Show all Fries91 apps";
+    catalogButton.setAttribute("aria-label", "Show all Fries91 apps");
+    catalogButton.innerHTML = "<span>🍟</span>";
+    catalogButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openCatalog();
+    });
+    bar.appendChild(catalogButton);
+  }
+
+  function ensureBar() {
     if (!document.body) return false;
 
     let slot = document.getElementById(IDS.slot);
-    let bar = document.getElementById(IDS.button);
+    let bar = document.getElementById(IDS.bar);
 
     if (!slot) {
       slot = document.createElement("div");
       slot.id = IDS.slot;
-      state.headerLocked = false;
+      state.locked = false;
     }
 
-    if (!bar || bar.tagName === "BUTTON") {
-      if (bar) bar.remove();
+    if (!bar) {
       bar = document.createElement("nav");
-      bar.id = IDS.button;
-      bar.setAttribute("aria-label", "Fries91 Torn app launcher");
-      buildDirectIconBar(bar);
-    } else if (!bar.querySelector(".fries91-direct-app-button")) {
-      buildDirectIconBar(bar);
+      bar.id = IDS.bar;
+      bar.setAttribute("aria-label", "Fries91 app installer bar");
+      buildBar(bar);
     }
 
     if (bar.parentElement !== slot) slot.appendChild(bar);
 
-    const oldFloating = document.getElementById(IDS.fallback);
-    if (oldFloating) oldFloating.remove();
+    if (state.locked && slot.isConnected) return true;
+    if (!slot.isConnected) state.locked = false;
 
-    if (state.headerLocked && slot.isConnected) {
-      bar.style.removeProperty("display");
-      slot.style.removeProperty("display");
-      return true;
-    }
+    const anchor = findTopAnchor();
 
-    if (!slot.isConnected) state.headerLocked = false;
-    const anchor = findMobileTopAnchor() || getHeaderTarget();
-
-    if (anchor && placeTopBarAfter(anchor, slot)) {
-      bar.style.removeProperty("display");
-      slot.style.removeProperty("display");
-      slot.dataset.fries91TopLocked = "1";
-      state.lastHeaderTarget = anchor;
-      state.headerLocked = true;
+    if (anchor && placeAfter(anchor, slot)) {
+      state.lastAnchor = anchor;
+      state.locked = true;
       return true;
     }
 
@@ -1179,12 +302,9 @@
       document.body
     ].filter(Boolean);
 
-    const content = contentCandidates.find((element) => element && !element.closest?.(`#${IDS.overlay}`)) || document.body;
+    const content = contentCandidates.find((element) => !element.closest?.(`#${IDS.overlay}`)) || document.body;
     if (slot.parentElement !== content) content.insertBefore(slot, content.firstChild);
-    bar.style.removeProperty("display");
-    slot.style.removeProperty("display");
-    slot.dataset.fries91TopLocked = "1";
-    state.headerLocked = true;
+    state.locked = true;
     return true;
   }
 
@@ -1194,207 +314,185 @@
     const overlay = document.createElement("div");
     overlay.id = IDS.overlay;
     overlay.innerHTML = `
-      <section id="${IDS.panel}" role="dialog" aria-modal="true" aria-label="Fries91 Faction Apps">
-        <header class="fries91-hub-head">
+      <section id="${IDS.panel}" role="dialog" aria-modal="true" aria-label="Fries91 app installer">
+        <header class="fries91-installer-header">
           <div>
             <strong>🍟 Fries91's Faction Apps</strong>
-            <small>Hub v${BUILD} • Direct icon bar</small>
+            <small>Installer Bar v${VERSION}</small>
           </div>
-          <div class="fries91-hub-head-actions">
-            <button id="fries91-hub-update-all" type="button">↻ Update Apps</button>
-            <button id="fries91-hub-close" class="fries91-hub-close" type="button">×</button>
-          </div>
+          <button type="button" id="fries91-installer-close" aria-label="Close">×</button>
         </header>
-        <div id="${IDS.status}" class="fries91-hub-status">Apps load from their official live files and keep a cached fallback.</div>
-        <main id="${IDS.cards}" class="fries91-hub-cards"></main>
-        <footer class="fries91-hub-footer">
-          Tap an icon in the top bar to open its app. Tap 🍟 for updates and full Hub settings.
-        </footer>
+        <main id="${IDS.catalog}"></main>
       </section>
     `;
+
     document.body.appendChild(overlay);
 
     overlay.addEventListener("click", (event) => {
-      if (event.target === overlay) closeHub();
+      if (event.target === overlay) closeOverlay();
     });
-    document.getElementById("fries91-hub-close").addEventListener("click", closeHub);
-    document.getElementById("fries91-hub-update-all").addEventListener("click", updateAllSources);
-    renderCards();
+
+    document.getElementById("fries91-installer-close").addEventListener("click", closeOverlay);
   }
 
-  function openHub() {
+  function openOverlay() {
     mountOverlay();
-    state.open = true;
-    sv(KEY.open, true);
     document.getElementById(IDS.overlay)?.classList.add("show");
-    renderCards();
-    syncBadges();
   }
 
-  function closeHub() {
-    state.open = false;
-    sv(KEY.open, false);
+  function closeOverlay() {
     document.getElementById(IDS.overlay)?.classList.remove("show");
   }
 
-  function forceHideLauncher(element) {
-    if (!element || !element.isConnected) return;
-    if (element.closest(`#${IDS.overlay}`)) return;
-    if (element.dataset.fries91HubOpenExempt === "1") return;
+  function openInstallUrl(url) {
+    const newWindow = window.open(url, "_blank", "noopener,noreferrer");
 
-    element.dataset.fries91HubHiddenLauncher = "1";
-    element.classList.add("fries91-hub-hidden-launcher");
-    element.setAttribute("aria-hidden", "true");
-    element.style.setProperty("display", "none", "important");
-    element.style.setProperty("visibility", "hidden", "important");
-    element.style.setProperty("opacity", "0", "important");
-    element.style.setProperty("pointer-events", "none", "important");
-    element.style.setProperty("left", "-10000px", "important");
-    element.style.setProperty("top", "-10000px", "important");
+    if (!newWindow) {
+      location.href = url;
+    }
   }
 
-  function suppressStandaloneLaunchers() {
-    const selectors = [
-      "#warhub-shield",
-      "#warhub-badge",
-      "#si-pda-launcher",
-      "#giveaway-shield",
-      "#tse_hq_badge",
-      "#tse-hq-badge",
-      "#tse-badge",
-      "[id^='tse_'][id*='badge']",
-      "[id^='tse-'][id*='badge']",
-      "#fb-bank-coin-clean",
-      "#fb-setup-button",
-      "#fb-built-in-box",
-      "#tb-icon",
-      "#tcc-native-button"
-    ];
-
-    for (const selector of selectors) {
-      try {
-        document.querySelectorAll(selector).forEach(forceHideLauncher);
-      } catch (_) {}
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast("Install link copied.", "good");
+    } catch (_) {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.left = "-10000px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+      showToast("Install link copied.", "good");
     }
+  }
 
-    // Some older helper builds use a small green fixed “FF” launcher with no
-    // stable ID. Hide only tiny fixed elements whose complete label is FF.
-    document.querySelectorAll("button,div,a,span").forEach((element) => {
-      if (element.closest(`#${IDS.overlay}`)) return;
-      if (String(element.textContent || "").trim() !== "FF") return;
+  function installCardHtml(app) {
+    return `
+      <article class="fries91-install-card single">
+        <div class="fries91-install-card-top">
+          <div class="fries91-install-icon">${app.icon}</div>
+          <div>
+            <strong>${escapeHtml(app.name)}</strong>
+            <span>${escapeHtml(app.description)}</span>
+            <small>${escapeHtml(app.version)}</small>
+          </div>
+        </div>
 
-      const style = getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      if (
-        (style.position === "fixed" || style.position === "absolute") &&
-        rect.width > 15 && rect.width <= 90 &&
-        rect.height > 15 && rect.height <= 90
-      ) {
-        forceHideLauncher(element);
-      }
+        <div class="fries91-install-instructions">
+          This installs <b>only ${escapeHtml(app.name)}</b>. It does not install the other apps.
+        </div>
+
+        <label class="fries91-install-link-label" for="fries91-current-install-link">
+          Individual userscript link
+        </label>
+        <input
+          id="fries91-current-install-link"
+          class="fries91-install-link"
+          type="text"
+          readonly
+          value="${escapeHtml(app.url)}"
+        >
+
+        <div class="fries91-install-actions">
+          <button type="button" class="fries91-install-primary" data-install="${escapeHtml(app.id)}">
+            Install This App Only
+          </button>
+          <button type="button" class="fries91-install-copy" data-copy="${escapeHtml(app.id)}">
+            Copy Link
+          </button>
+        </div>
+
+        <p class="fries91-install-note">
+          Your userscript manager or TornPDA should show an installation screen after the install button opens the link.
+        </p>
+      </article>
+    `;
+  }
+
+  function bindInstallActions(container) {
+    container.querySelectorAll("[data-install]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const app = appById(button.dataset.install);
+        if (app) openInstallUrl(app.url);
+      });
+    });
+
+    container.querySelectorAll("[data-copy]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const app = appById(button.dataset.copy);
+        if (app) copyText(app.url);
+      });
     });
   }
 
-  function startLauncherSuppression() {
-    suppressStandaloneLaunchers();
+  function openInstallCard(appId) {
+    const app = appById(appId);
+    if (!app) return;
 
-    if (!state.suppressTimer) {
-      state.suppressTimer = setInterval(suppressStandaloneLaunchers, 450);
-    }
+    openOverlay();
 
-    if (!state.suppressObserver && document.documentElement) {
-      state.suppressObserver = new MutationObserver(() => suppressStandaloneLaunchers());
-      state.suppressObserver.observe(document.documentElement, {
-        childList: true,
-        subtree: true
-      });
-    }
+    const catalog = document.getElementById(IDS.catalog);
+    catalog.innerHTML = `
+      <button type="button" class="fries91-back-to-catalog">← All Apps</button>
+      ${installCardHtml(app)}
+    `;
+
+    catalog.querySelector(".fries91-back-to-catalog").addEventListener("click", openCatalog);
+    bindInstallActions(catalog);
   }
 
-  function bankerCount() {
-    const coin = document.getElementById("fb-bank-coin-clean");
-    if (!coin) return 0;
-    const candidates = [
-      coin.getAttribute("data-count"),
-      coin.dataset?.count,
-      coin.getAttribute("aria-label"),
-      coin.title
-    ];
-    for (const candidate of candidates) {
-      const match = String(candidate || "").match(/\b(\d{1,4})\b/);
-      if (match) return Number(match[1]) || 0;
-    }
-    return 0;
+  function openCatalog() {
+    openOverlay();
+
+    const catalog = document.getElementById(IDS.catalog);
+    catalog.innerHTML = `
+      <div class="fries91-catalog-intro">
+        Choose one app. Each install button installs only that individual userscript.
+      </div>
+      <div class="fries91-catalog-grid">
+        ${APPS.map((app) => `
+          <article class="fries91-catalog-card">
+            <button type="button" data-view="${escapeHtml(app.id)}">
+              <span class="fries91-catalog-icon">${app.icon}</span>
+              <strong>${escapeHtml(app.name)}</strong>
+              <small>View install link</small>
+            </button>
+          </article>
+        `).join("")}
+      </div>
+    `;
+
+    catalog.querySelectorAll("[data-view]").forEach((button) => {
+      button.addEventListener("click", () => openInstallCard(button.dataset.view));
+    });
   }
 
-  function brainCount() {
-    const badge = document.getElementById("tb-badge");
-    const match = String(badge?.textContent || "").match(/\d+/);
-    return match ? Number(match[0]) || 0 : 0;
-  }
+  function showToast(text, kind = "normal") {
+    let toast = document.getElementById(IDS.toast);
 
-  function chainCondition() {
-    const button = document.getElementById("tcc-native-button");
-    if (!button) return { level: "off", text: "" };
-
-    const classText = String(button.className || "").toLowerCase();
-    if (classText.includes("danger") || classText.includes("red")) return { level: "red", text: "Critical" };
-    if (classText.includes("warning") || classText.includes("yellow") || classText.includes("warn")) return { level: "yellow", text: "Warning" };
-
-    const badge = button.querySelector(".tcc-n-badge");
-    const text = String(badge?.textContent || "").trim();
-    return { level: "green", text };
-  }
-
-  function syncBadges() {
-    const bank = bankerCount();
-    const brain = brainCount();
-    const total = bank + brain;
-
-    for (const badgeId of [IDS.buttonBadge, IDS.fallbackBadge]) {
-      const topBadge = document.getElementById(badgeId);
-      if (topBadge) {
-        topBadge.textContent = String(total);
-        topBadge.hidden = total <= 0;
-      }
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = IDS.toast;
+      document.body.appendChild(toast);
     }
 
-    for (const badgeId of ["fries91-card-bank-badge", IDS.directBankBadge]) {
-      const bankBadge = document.getElementById(badgeId);
-      if (bankBadge) {
-        bankBadge.textContent = String(bank);
-        bankBadge.hidden = bank <= 0;
-      }
-    }
+    toast.textContent = text;
+    toast.dataset.kind = kind;
+    toast.classList.add("show");
 
-    for (const badgeId of ["fries91-card-brain-badge", IDS.directBrainBadge]) {
-      const brainBadge = document.getElementById(badgeId);
-      if (brainBadge) {
-        brainBadge.textContent = String(brain);
-        brainBadge.hidden = brain <= 0;
-      }
-    }
-
-    const chain = chainCondition();
-    for (const lightId of [IDS.chainLight, IDS.fallbackChainLight]) {
-      const chainLight = document.getElementById(lightId);
-      if (chainLight) {
-        chainLight.dataset.level = chain.level;
-        chainLight.title = chain.text ? `100K Chain: ${chain.text}` : "100K Chain not loaded";
-      }
-    }
-
-    const chainCard = document.getElementById("fries91-chain-card-state");
-    if (chainCard) {
-      chainCard.dataset.level = chain.level;
-      chainCard.textContent = chain.text || "•";
-    }
+    clearTimeout(state.toastTimer);
+    state.toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
   }
 
   function addStyles() {
     if (document.getElementById(IDS.style)) return;
 
-    const css = `
+    const style = document.createElement("style");
+    style.id = IDS.style;
+    style.textContent = `
       #${IDS.slot} {
         position:relative !important;
         display:block !important;
@@ -1404,13 +502,13 @@
         box-sizing:border-box !important;
         padding:3px 5px 4px !important;
         margin:0 !important;
-        order:0 !important;
         z-index:2147482000 !important;
         background:rgba(11,12,14,.98) !important;
         border-top:1px solid rgba(236,190,83,.18) !important;
         border-bottom:1px solid rgba(236,190,83,.28) !important;
       }
-      #${IDS.button} {
+
+      #${IDS.bar} {
         position:relative !important;
         display:grid !important;
         grid-template-columns:repeat(9,minmax(0,1fr)) !important;
@@ -1424,9 +522,9 @@
         border-radius:9px !important;
         background:linear-gradient(180deg,#7d1419,#41080b) !important;
         box-shadow:0 2px 9px rgba(0,0,0,.38) !important;
-        overflow:visible !important;
       }
-      .fries91-direct-app-button {
+
+      .fries91-installer-icon-button {
         position:relative !important;
         min-width:0 !important;
         width:100% !important;
@@ -1443,60 +541,23 @@
         box-shadow:0 1px 4px rgba(0,0,0,.42) !important;
         cursor:pointer !important;
         touch-action:manipulation !important;
-        overflow:visible !important;
       }
-      .fries91-direct-app-button:active {
+
+      .fries91-installer-icon-button:active {
         transform:scale(.92) !important;
         filter:brightness(1.25) !important;
       }
-      .fries91-direct-hub-button {
+
+      .fries91-installer-catalog-button {
         border-color:rgba(255,213,102,.58) !important;
         background:linear-gradient(180deg,#a11d23,#570d11) !important;
       }
-      .fries91-direct-icon {
+
+      .fries91-installer-icon-button span {
         display:block !important;
         font-size:20px !important;
         line-height:1 !important;
-        filter:drop-shadow(0 1px 2px rgba(0,0,0,.65)) !important;
         pointer-events:none !important;
-      }
-      .fries91-direct-badge {
-        position:absolute !important;
-        right:-3px !important;
-        top:-6px !important;
-        min-width:17px !important;
-        height:17px !important;
-        padding:0 4px !important;
-        box-sizing:border-box !important;
-        display:flex !important;
-        align-items:center !important;
-        justify-content:center !important;
-        border-radius:999px !important;
-        background:#ef3340 !important;
-        color:white !important;
-        font:900 9px/1 Arial,sans-serif !important;
-        box-shadow:0 0 0 2px #360608 !important;
-        z-index:3 !important;
-        pointer-events:none !important;
-      }
-      .fries91-direct-badge[hidden] { display:none !important; }
-      .fries91-direct-chain-light {
-        position:absolute !important;
-        left:2px !important;
-        top:2px !important;
-        width:8px !important;
-        height:8px !important;
-        border-radius:50% !important;
-        background:#526170 !important;
-        box-shadow:0 0 0 1px rgba(0,0,0,.48) !important;
-        pointer-events:none !important;
-      }
-      .fries91-direct-chain-light[data-level="green"] { background:#22c55e !important; box-shadow:0 0 6px #22c55e !important; }
-      .fries91-direct-chain-light[data-level="yellow"] { background:#facc15 !important; box-shadow:0 0 7px #facc15 !important; }
-      .fries91-direct-chain-light[data-level="red"] {
-        background:#ef4444 !important;
-        box-shadow:0 0 8px #ef4444 !important;
-        animation:fries91-pulse .9s infinite !important;
       }
 
       #${IDS.overlay} {
@@ -1506,26 +567,31 @@
         align-items:flex-start !important;
         justify-content:center !important;
         padding:max(10px,env(safe-area-inset-top,0px)) 8px 10px !important;
-        background:rgba(0,0,0,.72) !important;
-        backdrop-filter:blur(3px) !important;
-        z-index:2147483200 !important;
         box-sizing:border-box !important;
+        background:rgba(0,0,0,.76) !important;
+        backdrop-filter:blur(3px) !important;
+        z-index:2147483600 !important;
       }
-      #${IDS.overlay}.show { display:flex !important; }
+
+      #${IDS.overlay}.show {
+        display:flex !important;
+      }
+
       #${IDS.panel} {
         width:min(560px,100%) !important;
         max-height:calc(100vh - 20px) !important;
         overflow:hidden !important;
         display:flex !important;
         flex-direction:column !important;
-        border:1px solid rgba(232,190,95,.52) !important;
+        border:1px solid rgba(232,190,95,.56) !important;
         border-radius:15px !important;
         background:linear-gradient(180deg,#15181d,#08090b) !important;
         color:#f5ead0 !important;
-        box-shadow:0 18px 70px rgba(0,0,0,.72) !important;
+        box-shadow:0 18px 70px rgba(0,0,0,.74) !important;
         font-family:Arial,sans-serif !important;
       }
-      .fries91-hub-head {
+
+      .fries91-installer-header {
         display:flex !important;
         align-items:center !important;
         justify-content:space-between !important;
@@ -1534,167 +600,217 @@
         border-bottom:1px solid rgba(232,190,95,.27) !important;
         background:linear-gradient(180deg,#691116,#27070a) !important;
       }
-      .fries91-hub-head > div:first-child { min-width:0 !important; }
-      .fries91-hub-head strong { display:block !important; color:#fff4d2 !important; font-size:15px !important; }
-      .fries91-hub-head small { display:block !important; margin-top:2px !important; color:#d5bd82 !important; font-size:10px !important; }
-      .fries91-hub-head-actions { display:flex !important; align-items:center !important; gap:6px !important; }
-      .fries91-hub-head-actions button {
-        min-height:31px !important;
-        padding:0 9px !important;
-        border:1px solid rgba(244,211,126,.43) !important;
-        border-radius:8px !important;
-        background:#17191e !important;
-        color:#f5e4b7 !important;
-        font-weight:800 !important;
-        cursor:pointer !important;
+
+      .fries91-installer-header strong {
+        display:block !important;
+        color:#fff4d2 !important;
+        font-size:15px !important;
       }
-      .fries91-hub-head-actions .fries91-hub-close {
-        width:34px !important;
-        padding:0 !important;
-        font-size:22px !important;
-        color:white !important;
-      }
-      .fries91-hub-status {
-        min-height:18px !important;
-        padding:8px 11px !important;
-        border-bottom:1px solid rgba(255,255,255,.07) !important;
-        color:#b9c2cd !important;
-        background:#0e1115 !important;
+
+      .fries91-installer-header small {
+        display:block !important;
+        margin-top:2px !important;
+        color:#d5bd82 !important;
         font-size:10px !important;
       }
-      .fries91-hub-status[data-kind="good"] { color:#91edb5 !important; }
-      .fries91-hub-status[data-kind="warn"] { color:#ffe17b !important; }
-      .fries91-hub-status[data-kind="bad"] { color:#ff9ca4 !important; }
-      .fries91-hub-cards {
+
+      #fries91-installer-close {
+        width:38px !important;
+        height:38px !important;
+        min-width:38px !important;
+        padding:0 !important;
+        border:1px solid rgba(244,211,126,.43) !important;
+        border-radius:10px !important;
+        background:#17191e !important;
+        color:white !important;
+        font:900 24px/1 Arial,sans-serif !important;
+        cursor:pointer !important;
+      }
+
+      #${IDS.catalog} {
         overflow:auto !important;
         overscroll-behavior:contain !important;
-        padding:9px !important;
+        padding:10px !important;
+      }
+
+      .fries91-catalog-intro,
+      .fries91-install-instructions {
+        margin-bottom:10px !important;
+        padding:10px !important;
+        border:1px solid rgba(94,160,212,.38) !important;
+        border-radius:10px !important;
+        background:#101923 !important;
+        color:#c8dff2 !important;
+        font-size:11px !important;
+        line-height:1.45 !important;
+      }
+
+      .fries91-catalog-grid {
         display:grid !important;
         grid-template-columns:repeat(2,minmax(0,1fr)) !important;
         gap:8px !important;
       }
-      .fries91-app-card {
-        min-width:0 !important;
-        display:flex !important;
-        flex-direction:column !important;
-        justify-content:space-between !important;
-        gap:9px !important;
-        padding:10px !important;
+
+      .fries91-catalog-card {
         border:1px solid rgba(255,255,255,.11) !important;
         border-radius:12px !important;
         background:linear-gradient(180deg,#171b21,#101318) !important;
-        box-shadow:0 4px 14px rgba(0,0,0,.2) !important;
+        overflow:hidden !important;
       }
-      .fries91-card-main { display:flex !important; align-items:flex-start !important; gap:9px !important; min-width:0 !important; }
-      .fries91-card-icon {
-        position:relative !important;
-        flex:0 0 38px !important;
-        width:38px !important;
-        height:38px !important;
+
+      .fries91-catalog-card button {
+        width:100% !important;
+        min-height:100px !important;
+        padding:10px !important;
+        display:flex !important;
+        flex-direction:column !important;
+        align-items:center !important;
+        justify-content:center !important;
+        gap:6px !important;
+        border:0 !important;
+        background:transparent !important;
+        color:white !important;
+        cursor:pointer !important;
+      }
+
+      .fries91-catalog-icon {
+        font-size:27px !important;
+      }
+
+      .fries91-catalog-card strong {
+        color:#fff0c5 !important;
+        font-size:12px !important;
+        text-align:center !important;
+      }
+
+      .fries91-catalog-card small {
+        color:#aeb8c5 !important;
+        font-size:9px !important;
+      }
+
+      .fries91-back-to-catalog {
+        min-height:32px !important;
+        margin-bottom:9px !important;
+        padding:0 10px !important;
+        border:1px solid rgba(255,225,150,.3) !important;
+        border-radius:8px !important;
+        background:#15191f !important;
+        color:#f6df9e !important;
+        font-weight:800 !important;
+        cursor:pointer !important;
+      }
+
+      .fries91-install-card {
+        padding:12px !important;
+        border:1px solid rgba(255,255,255,.11) !important;
+        border-radius:13px !important;
+        background:linear-gradient(180deg,#171b21,#0d1014) !important;
+      }
+
+      .fries91-install-card-top {
+        display:flex !important;
+        align-items:flex-start !important;
+        gap:10px !important;
+        margin-bottom:11px !important;
+      }
+
+      .fries91-install-icon {
+        flex:0 0 48px !important;
+        width:48px !important;
+        height:48px !important;
         display:flex !important;
         align-items:center !important;
         justify-content:center !important;
-        border-radius:10px !important;
-        background:#080a0d !important;
-        border:1px solid rgba(232,190,95,.24) !important;
-        font-size:21px !important;
+        border:1px solid rgba(232,190,95,.3) !important;
+        border-radius:12px !important;
+        background:#090b0e !important;
+        font-size:27px !important;
       }
-      .fries91-card-alert { position:absolute !important; right:-6px !important; top:-6px !important; }
-      .fries91-card-alert.brain { background:#7c3aed !important; }
-      .fries91-chain-card-state {
-        position:absolute !important;
-        right:-6px !important;
-        top:-6px !important;
-        max-width:34px !important;
-        overflow:hidden !important;
-        text-overflow:ellipsis !important;
-        padding:2px 5px !important;
-        border-radius:999px !important;
-        background:#526170 !important;
-        color:white !important;
-        font:900 8px/1.2 Arial,sans-serif !important;
-      }
-      .fries91-chain-card-state[data-level="green"] { background:#138a42 !important; }
-      .fries91-chain-card-state[data-level="yellow"] { background:#c39500 !important; color:#151000 !important; }
-      .fries91-chain-card-state[data-level="red"] { background:#d72635 !important; animation:fries91-pulse .9s infinite; }
-      .fries91-card-copy { min-width:0 !important; }
-      .fries91-card-copy strong {
+
+      .fries91-install-card-top strong {
         display:block !important;
-        overflow:hidden !important;
-        text-overflow:ellipsis !important;
-        white-space:nowrap !important;
-        color:#fff3ce !important;
-        font-size:12px !important;
+        color:#fff1c9 !important;
+        font-size:15px !important;
       }
-      .fries91-card-copy span {
-        display:block !important;
-        margin-top:3px !important;
-        color:#aeb8c5 !important;
-        font-size:9.5px !important;
-        line-height:1.3 !important;
-      }
-      .fries91-card-copy small {
+
+      .fries91-install-card-top span {
         display:block !important;
         margin-top:4px !important;
-        color:#d1a94d !important;
-        font-size:8.5px !important;
+        color:#b4bfcb !important;
+        font-size:10.5px !important;
+        line-height:1.35 !important;
       }
-      .fries91-card-bottom {
-        display:flex !important;
-        align-items:center !important;
-        justify-content:space-between !important;
-        gap:7px !important;
+
+      .fries91-install-card-top small {
+        display:block !important;
+        margin-top:5px !important;
+        color:#d3ae54 !important;
+        font-size:9px !important;
       }
-      .fries91-card-status {
-        min-width:0 !important;
-        overflow:hidden !important;
-        text-overflow:ellipsis !important;
-        white-space:nowrap !important;
-        color:#91a0af !important;
-        font-size:8.5px !important;
+
+      .fries91-install-link-label {
+        display:block !important;
+        margin-bottom:4px !important;
+        color:#d8bd7b !important;
+        font-size:9px !important;
+        font-weight:800 !important;
       }
-      .fries91-card-status[data-kind="good"] { color:#7de5a5 !important; }
-      .fries91-card-status[data-kind="warn"] { color:#ffe27a !important; }
-      .fries91-card-status[data-kind="bad"] { color:#ff8c96 !important; }
-      .fries91-card-status[data-kind="loading"] { color:#7ec8ff !important; }
-      .fries91-card-actions { display:flex !important; align-items:center !important; gap:5px !important; flex:0 0 auto !important; }
-      .fries91-open-app {
-        min-height:29px !important;
-        padding:0 10px !important;
-        border:1px solid rgba(233,190,83,.48) !important;
+
+      .fries91-install-link {
+        width:100% !important;
+        min-height:39px !important;
+        box-sizing:border-box !important;
+        padding:8px !important;
+        border:1px solid rgba(255,255,255,.18) !important;
         border-radius:8px !important;
-        background:linear-gradient(180deg,#991a20,#581014) !important;
-        color:white !important;
-        font-size:10px !important;
+        background:#080a0d !important;
+        color:#e7edf3 !important;
+        font:10px/1.3 monospace !important;
+      }
+
+      .fries91-install-actions {
+        display:grid !important;
+        grid-template-columns:2fr 1fr !important;
+        gap:7px !important;
+        margin-top:10px !important;
+      }
+
+      .fries91-install-actions button {
+        min-height:42px !important;
+        border-radius:9px !important;
+        font-size:11px !important;
         font-weight:900 !important;
         cursor:pointer !important;
       }
-      .fries91-background-toggle {
-        display:flex !important;
-        align-items:center !important;
-        gap:3px !important;
-        color:#aab4c0 !important;
-        font-size:8px !important;
-        cursor:pointer !important;
+
+      .fries91-install-primary {
+        border:1px solid #e3b543 !important;
+        background:linear-gradient(180deg,#a51d24,#590d12) !important;
+        color:white !important;
       }
-      .fries91-background-toggle input { width:13px !important; height:13px !important; margin:0 !important; accent-color:#d8a72f !important; }
-      .fries91-hub-footer {
-        padding:7px 10px !important;
-        border-top:1px solid rgba(255,255,255,.07) !important;
-        background:#090b0e !important;
-        color:#788493 !important;
-        text-align:center !important;
-        font-size:8.5px !important;
+
+      .fries91-install-copy {
+        border:1px solid rgba(255,255,255,.22) !important;
+        background:#181c22 !important;
+        color:#e9edf2 !important;
       }
+
+      .fries91-install-note {
+        margin:9px 0 0 !important;
+        color:#85919e !important;
+        font-size:9px !important;
+        line-height:1.4 !important;
+      }
+
       #${IDS.toast} {
         position:fixed !important;
         left:50% !important;
-        bottom:max(16px,env(safe-area-inset-bottom,0px)) !important;
-        transform:translate(-50%,20px) !important;
-        width:min(430px,calc(100% - 24px)) !important;
+        bottom:max(18px,env(safe-area-inset-bottom,0px)) !important;
+        transform:translate(-50%,18px) !important;
+        width:min(420px,calc(100% - 24px)) !important;
         box-sizing:border-box !important;
-        padding:11px 13px !important;
-        border:1px solid rgba(232,190,95,.43) !important;
+        padding:11px !important;
+        border:1px solid rgba(232,190,95,.45) !important;
         border-radius:11px !important;
         background:#11151a !important;
         color:#ecf1f5 !important;
@@ -1703,162 +819,91 @@
         transition:.18s ease !important;
         text-align:center !important;
         font:800 11px/1.35 Arial,sans-serif !important;
-        z-index:2147483646 !important;
-      }
-      #${IDS.toast}.show { opacity:1 !important; transform:translate(-50%,0) !important; }
-      #${IDS.toast}[data-kind="good"] { border-color:#34c978 !important; color:#b9f7d1 !important; }
-      #${IDS.toast}[data-kind="warn"] { border-color:#e0b62f !important; color:#ffe89b !important; }
-      #${IDS.toast}[data-kind="bad"] { border-color:#ef4652 !important; color:#ffc0c5 !important; }
-      .fries91-hub-hidden-launcher,
-      [data-fries91-hub-hidden-launcher="1"],
-      [data-fries91-hub-hidden-launcher="true"] {
-        display:none !important;
-        position:fixed !important;
-        left:-10000px !important;
-        top:-10000px !important;
-        opacity:0 !important;
-        visibility:hidden !important;
-        pointer-events:none !important;
-      }
-      .fries91-app-fallback-close {
-        position:absolute !important;
-        right:8px !important;
-        top:8px !important;
         z-index:2147483647 !important;
-        width:38px !important;
-        height:38px !important;
-        min-width:38px !important;
-        min-height:38px !important;
-        padding:0 !important;
-        display:flex !important;
-        align-items:center !important;
-        justify-content:center !important;
-        border:1px solid rgba(255,210,117,.65) !important;
-        border-radius:11px !important;
-        background:linear-gradient(180deg,#8f171c,#4b080b) !important;
-        color:white !important;
-        box-shadow:0 5px 18px rgba(0,0,0,.55) !important;
-        font:900 24px/1 Arial,sans-serif !important;
-        cursor:pointer !important;
       }
-      #fries91-assist-lite-bar.fries91-hub-highlight { animation:fries91-assist-highlight .5s 3 !important; }
-      @keyframes fries91-pulse { 50% { opacity:.42; transform:scale(.82); } }
-      @keyframes fries91-assist-highlight { 50% { filter:brightness(1.8); transform:scale(1.02); } }
+
+      #${IDS.toast}.show {
+        opacity:1 !important;
+        transform:translate(-50%,0) !important;
+      }
+
+      #${IDS.toast}[data-kind="good"] {
+        border-color:#34c978 !important;
+        color:#b9f7d1 !important;
+      }
 
       @media (max-width:620px) {
         #${IDS.slot} {
-          width:100% !important;
           padding:3px 4px !important;
         }
-        #${IDS.button} {
-          width:100% !important;
-          min-height:43px !important;
+
+        #${IDS.bar} {
           gap:2px !important;
           padding:3px !important;
           border-radius:7px !important;
         }
-        .fries91-direct-app-button {
+
+        .fries91-installer-icon-button {
           height:35px !important;
           min-height:35px !important;
           border-radius:6px !important;
         }
-        .fries91-direct-icon { font-size:19px !important; }
-        #${IDS.overlay} { padding:0 !important; }
-        #${IDS.panel} { width:100% !important; max-height:100vh !important; height:100% !important; border:0 !important; border-radius:0 !important; }
-        .fries91-hub-head { padding-top:max(9px,env(safe-area-inset-top,0px)) !important; }
-        .fries91-hub-cards { grid-template-columns:1fr !important; }
-        .fries91-card-copy span { font-size:10px !important; }
+
+        .fries91-installer-icon-button span {
+          font-size:19px !important;
+        }
+
+        #${IDS.overlay} {
+          padding:0 !important;
+        }
+
+        #${IDS.panel} {
+          width:100% !important;
+          height:100% !important;
+          max-height:100vh !important;
+          border:0 !important;
+          border-radius:0 !important;
+        }
+
+        .fries91-installer-header {
+          padding-top:max(10px,env(safe-area-inset-top,0px)) !important;
+        }
+
+        .fries91-catalog-grid {
+          grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        }
       }
     `;
 
-    try {
-      GM_addStyle(css);
-    } catch (_) {
-      const style = document.createElement("style");
-      style.id = IDS.style;
-      style.textContent = css;
-      (document.head || document.documentElement).appendChild(style);
-    }
+    (document.head || document.documentElement).appendChild(style);
   }
 
-  function backgroundStartDelay(app) {
-    if (app.id === "bankers") return 2500;
-    if (app.id === "chain100k") return 4500;
-    if (app.id === "brain") return 7000;
-    if (app.id === "assist") return isAttackPage() ? 1200 : 9500;
-    return 11000;
-  }
-
-  function startBackgroundApps() {
-    for (const app of APPS) {
-      if (!app.backgroundDefault || !backgroundEnabled(app)) continue;
-      const timer = setTimeout(async () => {
-        try {
-          await loadApp(app);
-        } catch (error) {
-          console.warn(`Fries91 Hub background load failed for ${app.id}:`, error);
-        }
-      }, backgroundStartDelay(app));
-      state.backgroundTimers.push(timer);
-    }
-  }
-
-  function refreshMountedState() {
+  function refreshMount() {
     const slot = document.getElementById(IDS.slot);
-    if (!slot || !slot.isConnected) state.headerLocked = false;
-
-    ensureHeaderButton();
-    suppressStandaloneLaunchers();
-    syncBadges();
-
-    for (const app of APPS) {
-      if (appReady(app)) {
-        state.running.add(app.id);
-        if (!state.status.has(app.id)) state.status.set(app.id, { text: "Ready", kind: "good" });
-      }
-    }
-  }
-
-  function registerMenuCommands() {
-    if (typeof GM_registerMenuCommand !== "function") return;
-    try {
-      GM_registerMenuCommand("Open Fries91 Faction Apps", openHub);
-      GM_registerMenuCommand("Update all Hub apps", updateAllSources);
-      GM_registerMenuCommand("Clear Hub source cache", () => {
-        for (const app of APPS) {
-          dv(KEY.cachePrefix + app.id);
-          dv(KEY.cacheTsPrefix + app.id);
-          dv(KEY.versionPrefix + app.id);
-        }
-        state.versions.clear();
-        state.sourceMode.clear();
-        renderCards();
-        showToast("Hub source cache cleared. App settings and API keys were not removed.", "good");
-      });
-    } catch (_) {}
+    if (!slot || !slot.isConnected) state.locked = false;
+    ensureBar();
   }
 
   function boot() {
     if (!document.body) {
-      setTimeout(boot, 400);
+      setTimeout(boot, 350);
       return;
     }
 
     addStyles();
     mountOverlay();
-    ensureHeaderButton();
-    startLauncherSuppression();
-    registerMenuCommands();
+    ensureBar();
 
-    APPS.forEach((app) => {
-      const savedVersion = String(gv(KEY.versionPrefix + app.id, "") || "");
-      if (savedVersion) state.versions.set(app.id, savedVersion);
+    state.interval = setInterval(refreshMount, 1600);
+
+    state.observer = new MutationObserver(() => {
+      if (!document.getElementById(IDS.slot)) state.locked = false;
     });
 
-    state.mountTimer = setInterval(refreshMountedState, 1500);
-    startBackgroundApps();
-
-    if (Boolean(gv(KEY.open, false))) openHub();
+    state.observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
   }
 
   if (document.readyState === "loading") {

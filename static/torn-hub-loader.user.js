@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🍟 Fries91's Faction Apps
 // @namespace    torn.hub.fries91
-// @version      0.8.0
-// @description  One PDA/PC launcher for Fries91 Torn apps with live-source updates, cached fallbacks, alerts, and duplicate-icon control.
+// @version      0.8.2
+// @description  One PDA/PC launcher for Fries91 Torn apps with a full-width top bar, live updates, cached fallbacks, alerts, and duplicate-icon control.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -33,16 +33,19 @@
 (function () {
   "use strict";
 
-  if (window.__FRIES91_FACTION_APPS_V080__) return;
-  window.__FRIES91_FACTION_APPS_V080__ = true;
+  if (window.__FRIES91_FACTION_APPS_V082__) return;
+  window.__FRIES91_FACTION_APPS_V082__ = true;
 
-  const BUILD = "0.8.0";
+  const BUILD = "0.8.2";
   const SOURCE_MAX_AGE = 6 * 60 * 60 * 1000;
   const IDS = {
     slot: "fries91-hub-slot-v080",
     button: "fries91-hub-button-v080",
     buttonBadge: "fries91-hub-button-badge-v080",
     chainLight: "fries91-hub-chain-light-v080",
+    fallback: "fries91-hub-mobile-launcher-v081",
+    fallbackBadge: "fries91-hub-mobile-badge-v081",
+    fallbackChainLight: "fries91-hub-mobile-chain-light-v081",
     overlay: "fries91-hub-overlay-v080",
     panel: "fries91-hub-panel-v080",
     cards: "fries91-hub-cards-v080",
@@ -667,6 +670,118 @@
     return best;
   }
 
+  function visibleForMount(element) {
+    if (!element) return false;
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return (
+      rect.width > 120 &&
+      rect.height > 10 &&
+      rect.bottom > 0 &&
+      rect.top < window.innerHeight &&
+      style.display !== "none" &&
+      style.visibility !== "hidden"
+    );
+  }
+
+  function findMobileTopAnchor() {
+    const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+
+    // First choice: Torn's money / points / merits row.
+    const all = Array.from(document.querySelectorAll("div,section,header,nav,ul,li"));
+    const scored = [];
+
+    for (const element of all) {
+      if (!visibleForMount(element)) continue;
+      if (element.closest(`#${IDS.overlay}`) || element.id === IDS.slot || element.id === IDS.button) continue;
+
+      const rect = element.getBoundingClientRect();
+      if (rect.width < Math.min(260, viewportWidth * 0.72)) continue;
+      if (rect.top < 120 || rect.top > 620) continue;
+      if (rect.height < 20 || rect.height > 115) continue;
+
+      const text = String(element.innerText || element.textContent || "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (!text || text.length > 320) continue;
+
+      const hasMoney = /\$\s*[\d,.]+[kmbt]?/i.test(text);
+      const hasPointsNumber = /(?:^|\s)P?\s*\d{1,6}(?:\s|$)/i.test(text);
+      const hasGender = /[♂♀]/.test(text);
+      const hasIcons = element.querySelectorAll("img,svg").length >= 2;
+      const likelyStatusRow =
+        hasMoney ||
+        (hasPointsNumber && hasGender) ||
+        (hasGender && hasIcons);
+
+      if (!likelyStatusRow) continue;
+
+      let score = 0;
+      if (hasMoney) score += 100;
+      if (hasGender) score += 45;
+      if (hasIcons) score += 25;
+      if (rect.width > viewportWidth * 0.9) score += 50;
+      if (rect.height <= 65) score += 25;
+      score -= Math.abs(rect.top - 400) * 0.08;
+      score -= text.length * 0.04;
+
+      scored.push({ element, score, rect });
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    if (scored[0]) return scored[0].element;
+
+    // Second choice: the lowest wide Torn navigation/status row near the top.
+    const fallbackCandidates = all
+      .filter(visibleForMount)
+      .filter((element) => {
+        if (element.closest(`#${IDS.overlay}`) || element.id === IDS.slot || element.id === IDS.button) return false;
+        const rect = element.getBoundingClientRect();
+        return (
+          rect.width >= Math.min(280, viewportWidth * 0.78) &&
+          rect.top >= 160 &&
+          rect.top <= 560 &&
+          rect.height >= 24 &&
+          rect.height <= 100
+        );
+      })
+      .sort((a, b) => b.getBoundingClientRect().top - a.getBoundingClientRect().top);
+
+    return fallbackCandidates[0] || null;
+  }
+
+  function placeTopBarAfter(anchor, slot) {
+    if (!anchor || !anchor.parentElement) return false;
+
+    let mountAnchor = anchor;
+
+    // Walk upward until the element is close to full page width, but avoid huge page containers.
+    for (let i = 0; i < 4 && mountAnchor.parentElement; i += 1) {
+      const currentRect = mountAnchor.getBoundingClientRect();
+      const parent = mountAnchor.parentElement;
+      const parentRect = parent.getBoundingClientRect();
+
+      if (
+        parentRect.width >= currentRect.width &&
+        parentRect.width >= window.innerWidth * 0.86 &&
+        parentRect.height <= 150
+      ) {
+        mountAnchor = parent;
+      } else {
+        break;
+      }
+    }
+
+    const parent = mountAnchor.parentElement;
+    if (!parent) return false;
+
+    if (slot.parentElement !== parent || slot.previousElementSibling !== mountAnchor) {
+      parent.insertBefore(slot, mountAnchor.nextSibling);
+    }
+    return true;
+  }
+
   function ensureHeaderButton() {
     if (!document.body) return false;
 
@@ -687,21 +802,42 @@
         <span class="fries91-hub-label">🍟 Fries91's Faction Apps</span>
         <span id="${IDS.buttonBadge}" class="fries91-hub-badge" hidden>0</span>
       `;
-      button.addEventListener("click", openHub);
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openHub();
+      });
     }
 
-    const target = getHeaderTarget();
-    if (!target) {
-      button.style.display = "none";
-      if (!slot.isConnected) document.body.appendChild(slot);
-      if (!button.isConnected) slot.appendChild(button);
-      return false;
-    }
-
-    button.style.removeProperty("display");
-    if (slot.parentElement !== target) target.appendChild(slot);
     if (button.parentElement !== slot) slot.appendChild(button);
-    state.lastHeaderTarget = target;
+
+    // Remove the temporary floating launcher from v0.8.1.
+    const oldFloating = document.getElementById(IDS.fallback);
+    if (oldFloating) oldFloating.remove();
+
+    const anchor = findMobileTopAnchor() || getHeaderTarget();
+
+    if (anchor && placeTopBarAfter(anchor, slot)) {
+      button.style.removeProperty("display");
+      slot.style.removeProperty("display");
+      state.lastHeaderTarget = anchor;
+      return true;
+    }
+
+    // Guaranteed fallback: full-width bar at the top of Torn's page content.
+    const contentCandidates = [
+      document.querySelector("#mainContainer"),
+      document.querySelector("#mainContainer > div"),
+      document.querySelector("[class*='content-wrapper']"),
+      document.querySelector("[class*='contentWrapper']"),
+      document.querySelector("main"),
+      document.body
+    ].filter(Boolean);
+
+    const content = contentCandidates.find((element) => element && !element.closest?.(`#${IDS.overlay}`)) || document.body;
+    if (slot.parentElement !== content) content.insertBefore(slot, content.firstChild);
+    button.style.removeProperty("display");
+    slot.style.removeProperty("display");
     return true;
   }
 
@@ -725,7 +861,7 @@
         <div id="${IDS.status}" class="fries91-hub-status">Apps load from their official live files and keep a cached fallback.</div>
         <main id="${IDS.cards}" class="fries91-hub-cards"></main>
         <footer class="fries91-hub-footer">
-          Duplicate standalone icons are hidden. Assist still appears on attack pages.
+          The Hub opens from the full-width top bar. Duplicate standalone icons are hidden.
         </footer>
       </section>
     `;
@@ -817,10 +953,12 @@
     const brain = brainCount();
     const total = bank + brain;
 
-    const topBadge = document.getElementById(IDS.buttonBadge);
-    if (topBadge) {
-      topBadge.textContent = String(total);
-      topBadge.hidden = total <= 0;
+    for (const badgeId of [IDS.buttonBadge, IDS.fallbackBadge]) {
+      const topBadge = document.getElementById(badgeId);
+      if (topBadge) {
+        topBadge.textContent = String(total);
+        topBadge.hidden = total <= 0;
+      }
     }
 
     const bankBadge = document.getElementById("fries91-card-bank-badge");
@@ -836,10 +974,12 @@
     }
 
     const chain = chainCondition();
-    const chainLight = document.getElementById(IDS.chainLight);
-    if (chainLight) {
-      chainLight.dataset.level = chain.level;
-      chainLight.title = chain.text ? `100K Chain: ${chain.text}` : "100K Chain not loaded";
+    for (const lightId of [IDS.chainLight, IDS.fallbackChainLight]) {
+      const chainLight = document.getElementById(lightId);
+      if (chainLight) {
+        chainLight.dataset.level = chain.level;
+        chainLight.title = chain.text ? `100K Chain: ${chain.text}` : "100K Chain not loaded";
+      }
     }
 
     const chainCard = document.getElementById("fries91-chain-card-state");
@@ -854,10 +994,17 @@
 
     const css = `
       #${IDS.slot} {
+        position:relative !important;
+        display:block !important;
         width:100% !important;
+        max-width:none !important;
+        clear:both !important;
         box-sizing:border-box !important;
-        padding:2px 4px 3px !important;
+        padding:3px 5px 4px !important;
+        margin:0 !important;
         order:9999 !important;
+        z-index:2147482000 !important;
+        background:rgba(11,12,14,.96) !important;
       }
       #${IDS.button} {
         position:relative !important;
@@ -866,13 +1013,13 @@
         justify-content:center !important;
         gap:7px !important;
         width:100% !important;
-        min-height:22px !important;
-        padding:2px 34px !important;
+        min-height:30px !important;
+        padding:5px 38px !important;
         border:1px solid rgba(245,191,73,.58) !important;
         border-radius:7px !important;
         background:linear-gradient(180deg,#8f171c,#4c080b) !important;
         color:#fff5d8 !important;
-        font:800 12px/1.25 Arial,sans-serif !important;
+        font:900 12px/1.25 Arial,sans-serif !important;
         letter-spacing:.1px !important;
         text-align:center !important;
         box-shadow:0 2px 8px rgba(0,0,0,.32) !important;
@@ -1132,6 +1279,16 @@
       @keyframes fries91-assist-highlight { 50% { filter:brightness(1.8); transform:scale(1.02); } }
 
       @media (max-width:620px) {
+        #${IDS.slot} {
+          width:100% !important;
+          padding:3px 4px !important;
+        }
+        #${IDS.button} {
+          width:100% !important;
+          min-height:31px !important;
+          border-radius:6px !important;
+          font-size:12px !important;
+        }
         #${IDS.overlay} { padding:0 !important; }
         #${IDS.panel} { width:100% !important; max-height:100vh !important; height:100% !important; border:0 !important; border-radius:0 !important; }
         .fries91-hub-head { padding-top:max(9px,env(safe-area-inset-top,0px)) !important; }

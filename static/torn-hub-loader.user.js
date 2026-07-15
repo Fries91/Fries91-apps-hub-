@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         🍟 Fries91's Faction Apps
 // @namespace    torn.hub.fries91
-// @version      0.8.3
-// @description  Locked top-bar Torn app hub. Apps open only from the Hub, standalone launchers stay hidden, and every app has a close control.
+// @version      0.9.0
+// @description  Compact top icon bar for direct Torn app launching, with hidden standalone icons, alerts, updates, and close controls.
 // @author       Fries91
 // @match        https://www.torn.com/*
 // @match        https://torn.com/*
@@ -33,16 +33,18 @@
 (function () {
   "use strict";
 
-  if (window.__FRIES91_FACTION_APPS_V083__) return;
-  window.__FRIES91_FACTION_APPS_V083__ = true;
+  if (window.__FRIES91_FACTION_APPS_V090__) return;
+  window.__FRIES91_FACTION_APPS_V090__ = true;
 
-  const BUILD = "0.8.3";
+  const BUILD = "0.9.0";
   const SOURCE_MAX_AGE = 6 * 60 * 60 * 1000;
   const IDS = {
     slot: "fries91-hub-slot-v080",
     button: "fries91-hub-button-v080",
     buttonBadge: "fries91-hub-button-badge-v080",
     chainLight: "fries91-hub-chain-light-v080",
+    directBankBadge: "fries91-direct-bank-badge-v090",
+    directBrainBadge: "fries91-direct-brain-badge-v090",
     fallback: "fries91-hub-mobile-launcher-v081",
     fallbackBadge: "fries91-hub-mobile-badge-v081",
     fallbackChainLight: "fries91-hub-mobile-chain-light-v081",
@@ -94,6 +96,7 @@
       openSelectors: ["#warhub-shield", "#warhub-badge"],
       overlaySelectors: ["#warhub-overlay"],
       closeSelectors: ["#warhub-close", "#warhub-overlay [data-close]", "#warhub-overlay [aria-label*='close' i]", "#warhub-overlay .close"],
+      openDelay: 900,
       backgroundDefault: false
     },
     {
@@ -407,8 +410,10 @@
     if (appReady(app) || state.running.has(app.id)) {
       state.running.add(app.id);
       setStatus(app.id, "Ready", "good");
-      suppressStandaloneLaunchers();
-      if (!options.openAfter) setTimeout(() => closeAppSilently(app), 40);
+      if (!options.openAfter) {
+        suppressStandaloneLaunchers();
+        setTimeout(() => closeAppSilently(app), 40);
+      }
       return { cached: false, already: true };
     }
 
@@ -450,11 +455,12 @@
 
       state.running.add(app.id);
       setStatus(app.id, sourceMode === "live" ? "Ready • live" : `Ready • ${sourceMode}`, "good");
-      suppressStandaloneLaunchers();
 
-      // Apps that start in the background are kept closed. They may still poll
-      // and produce Hub badges, but their own panels and launchers never appear.
+      // Apps that start in the background are kept closed and hidden. When the
+      // user presses Open, suppression waits until the internal launcher has
+      // opened the app panel.
       if (!options.openAfter) {
+        suppressStandaloneLaunchers();
         setTimeout(() => closeAppSilently(app), 80);
         setTimeout(() => closeAppSilently(app), 700);
       }
@@ -474,20 +480,78 @@
     return promise;
   }
 
-  function clickOpenSelector(app) {
-    const element = anySelector(app.openSelectors);
+  function prepareLauncherForInternalClick(element) {
+    if (!element) return;
+
+    element.dataset.fries91HubOpenExempt = "1";
+    delete element.dataset.fries91HubHiddenLauncher;
+    element.classList.remove("fries91-hub-hidden-launcher");
+    element.removeAttribute("aria-hidden");
+
+    // Restore only long enough for the app's own event handler to initialize
+    // and receive the internal click. It remains visually transparent.
+    element.style.setProperty("display", "block", "important");
+    element.style.setProperty("visibility", "visible", "important");
+    element.style.setProperty("opacity", "0", "important");
+    element.style.setProperty("pointer-events", "none", "important");
+    element.style.setProperty("position", "fixed", "important");
+    element.style.setProperty("left", "-10000px", "important");
+    element.style.setProperty("top", "-10000px", "important");
+  }
+
+  function finishInternalLauncherClick(element) {
+    if (!element) return;
+    delete element.dataset.fries91HubOpenExempt;
+    forceHideLauncher(element);
+  }
+
+  async function clickOpenSelector(app) {
+    const delay = Number(app?.openDelay || 220);
+    let element = anySelector(app.openSelectors);
+
+    if (!element) {
+      // Some apps create the launcher one animation frame after reporting ready.
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      element = anySelector(app.openSelectors);
+    }
+
     if (!element) return false;
+
+    prepareLauncherForInternalClick(element);
+    await new Promise((resolve) => setTimeout(resolve, delay));
+
+    // Re-read it in case the app replaced its launcher while initializing.
+    const newest = anySelector(app.openSelectors) || element;
+    if (newest !== element) {
+      finishInternalLauncherClick(element);
+      element = newest;
+      prepareLauncherForInternalClick(element);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+    }
+
+    let clicked = false;
     try {
       element.click();
-      return true;
+      clicked = true;
     } catch (_) {
       try {
-        element.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-        return true;
-      } catch (_) {
-        return false;
-      }
+        element.dispatchEvent(new MouseEvent("click", {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        }));
+        clicked = true;
+      } catch (_) {}
     }
+
+    // Give the app enough time to create/open its panel before hiding the
+    // standalone launcher again.
+    setTimeout(() => {
+      finishInternalLauncherClick(element);
+      suppressStandaloneLaunchers();
+    }, app?.id === "war" ? 1600 : 700);
+
+    return clicked;
   }
 
   function bridgeOpen(app) {
@@ -660,7 +724,7 @@
   }
 
   function waitForAppOpen(app, attempt = 0) {
-    if (!app || attempt > 35) return;
+    if (!app) return;
 
     const overlay = appOverlay(app);
     if (overlay && elementLooksOpen(overlay)) {
@@ -670,7 +734,18 @@
       return;
     }
 
-    setTimeout(() => waitForAppOpen(app, attempt + 1), 120);
+    if (attempt === 18 && app.id === "war") {
+      // One controlled retry for War & Chain after the script has fully mounted.
+      clickOpenSelector(app).catch(() => {});
+    }
+
+    if (attempt > 45) {
+      suppressStandaloneLaunchers();
+      showToast(`${app.name} did not open. Close and reopen the Hub, then try once more.`, "bad");
+      return;
+    }
+
+    setTimeout(() => waitForAppOpen(app, attempt + 1), 140);
   }
 
   function isAttackPage() {
@@ -686,7 +761,6 @@
     try {
       await loadApp(app, { openAfter: true });
       clearForcedHidden(app);
-      suppressStandaloneLaunchers();
 
       if (app.assistMode) {
         if (!isAttackPage()) {
@@ -711,10 +785,13 @@
         return;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 120));
-      const opened = bridgeOpen(app) || clickOpenSelector(app);
+      await new Promise((resolve) => setTimeout(resolve, 160));
+
+      let opened = bridgeOpen(app);
+      if (!opened) opened = await clickOpenSelector(app);
+
       if (!opened) {
-        throw new Error("The app loaded, but the Hub could not find its open control.");
+        throw new Error("The app loaded, but the Hub could not activate its internal open control.");
       }
 
       state.activeAppId = app.id;
@@ -995,11 +1072,64 @@
     return true;
   }
 
+  function directBarItems() {
+    return [
+      { appId: "war", icon: "⚔️", label: "War & Chain" },
+      { appId: "insurance", icon: "💊", label: "Sinner's Insurance" },
+      { appId: "giveaway", icon: "🎁", label: "Faction Giveaway" },
+      { appId: "tse", icon: "🚆", label: "T.S.E Headquarters" },
+      { appId: "bankers", icon: "🪙", label: "Faction Bankers", badgeId: IDS.directBankBadge },
+      { appId: "assist", icon: "🆘", label: "Assist Button" },
+      { appId: "brain", icon: "🧠", label: "AI Brain", badgeId: IDS.directBrainBadge },
+      { appId: "chain100k", icon: "⛓️", label: "100K Chain Command", chainLight: true }
+    ];
+  }
+
+  function buildDirectIconBar(bar) {
+    bar.innerHTML = "";
+
+    for (const item of directBarItems()) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "fries91-direct-app-button";
+      button.dataset.app = item.appId;
+      button.title = item.label;
+      button.setAttribute("aria-label", `Open ${item.label}`);
+      button.innerHTML = `
+        ${item.chainLight ? `<span id="${IDS.chainLight}" class="fries91-direct-chain-light"></span>` : ""}
+        <span class="fries91-direct-icon">${item.icon}</span>
+        ${item.badgeId ? `<span id="${item.badgeId}" class="fries91-direct-badge" hidden>0</span>` : ""}
+      `;
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openApp(item.appId);
+      });
+      bar.appendChild(button);
+    }
+
+    const hubButton = document.createElement("button");
+    hubButton.type = "button";
+    hubButton.className = "fries91-direct-app-button fries91-direct-hub-button";
+    hubButton.title = "Open full Fries91 App Hub";
+    hubButton.setAttribute("aria-label", "Open full Fries91 App Hub");
+    hubButton.innerHTML = `
+      <span class="fries91-direct-icon">🍟</span>
+      <span id="${IDS.buttonBadge}" class="fries91-direct-badge fries91-direct-total-badge" hidden>0</span>
+    `;
+    hubButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openHub();
+    });
+    bar.appendChild(hubButton);
+  }
+
   function ensureHeaderButton() {
     if (!document.body) return false;
 
     let slot = document.getElementById(IDS.slot);
-    let button = document.getElementById(IDS.button);
+    let bar = document.getElementById(IDS.button);
 
     if (!slot) {
       slot = document.createElement("div");
@@ -1007,41 +1137,32 @@
       state.headerLocked = false;
     }
 
-    if (!button) {
-      button = document.createElement("button");
-      button.id = IDS.button;
-      button.type = "button";
-      button.innerHTML = `
-        <span id="${IDS.chainLight}" class="fries91-chain-light" title="100K chain condition"></span>
-        <span class="fries91-hub-label">🍟 Fries91's Faction Apps</span>
-        <span id="${IDS.buttonBadge}" class="fries91-hub-badge" hidden>0</span>
-      `;
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        openHub();
-      });
+    if (!bar || bar.tagName === "BUTTON") {
+      if (bar) bar.remove();
+      bar = document.createElement("nav");
+      bar.id = IDS.button;
+      bar.setAttribute("aria-label", "Fries91 Torn app launcher");
+      buildDirectIconBar(bar);
+    } else if (!bar.querySelector(".fries91-direct-app-button")) {
+      buildDirectIconBar(bar);
     }
 
-    if (button.parentElement !== slot) slot.appendChild(button);
+    if (bar.parentElement !== slot) slot.appendChild(bar);
 
     const oldFloating = document.getElementById(IDS.fallback);
     if (oldFloating) oldFloating.remove();
 
-    // Once the bar has mounted correctly under Torn's status row, never move
-    // it during faction updates, chain refreshes, scrolling, or SPA rerenders.
     if (state.headerLocked && slot.isConnected) {
-      button.style.removeProperty("display");
+      bar.style.removeProperty("display");
       slot.style.removeProperty("display");
       return true;
     }
 
     if (!slot.isConnected) state.headerLocked = false;
-
     const anchor = findMobileTopAnchor() || getHeaderTarget();
 
     if (anchor && placeTopBarAfter(anchor, slot)) {
-      button.style.removeProperty("display");
+      bar.style.removeProperty("display");
       slot.style.removeProperty("display");
       slot.dataset.fries91TopLocked = "1";
       state.lastHeaderTarget = anchor;
@@ -1049,8 +1170,6 @@
       return true;
     }
 
-    // Guaranteed fallback remains at the start of Torn's main content and is
-    // also locked there, rather than being moved on every refresh.
     const contentCandidates = [
       document.querySelector("#mainContainer"),
       document.querySelector("#mainContainer > div"),
@@ -1062,7 +1181,7 @@
 
     const content = contentCandidates.find((element) => element && !element.closest?.(`#${IDS.overlay}`)) || document.body;
     if (slot.parentElement !== content) content.insertBefore(slot, content.firstChild);
-    button.style.removeProperty("display");
+    bar.style.removeProperty("display");
     slot.style.removeProperty("display");
     slot.dataset.fries91TopLocked = "1";
     state.headerLocked = true;
@@ -1079,7 +1198,7 @@
         <header class="fries91-hub-head">
           <div>
             <strong>🍟 Fries91's Faction Apps</strong>
-            <small>Hub v${BUILD} • PDA and PC</small>
+            <small>Hub v${BUILD} • Direct icon bar</small>
           </div>
           <div class="fries91-hub-head-actions">
             <button id="fries91-hub-update-all" type="button">↻ Update Apps</button>
@@ -1089,7 +1208,7 @@
         <div id="${IDS.status}" class="fries91-hub-status">Apps load from their official live files and keep a cached fallback.</div>
         <main id="${IDS.cards}" class="fries91-hub-cards"></main>
         <footer class="fries91-hub-footer">
-          The top bar stays locked under Torn's status row. Apps open only from this Hub.
+          Tap an icon in the top bar to open its app. Tap 🍟 for updates and full Hub settings.
         </footer>
       </section>
     `;
@@ -1121,6 +1240,7 @@
   function forceHideLauncher(element) {
     if (!element || !element.isConnected) return;
     if (element.closest(`#${IDS.overlay}`)) return;
+    if (element.dataset.fries91HubOpenExempt === "1") return;
 
     element.dataset.fries91HubHiddenLauncher = "1";
     element.classList.add("fries91-hub-hidden-launcher");
@@ -1239,16 +1359,20 @@
       }
     }
 
-    const bankBadge = document.getElementById("fries91-card-bank-badge");
-    if (bankBadge) {
-      bankBadge.textContent = String(bank);
-      bankBadge.hidden = bank <= 0;
+    for (const badgeId of ["fries91-card-bank-badge", IDS.directBankBadge]) {
+      const bankBadge = document.getElementById(badgeId);
+      if (bankBadge) {
+        bankBadge.textContent = String(bank);
+        bankBadge.hidden = bank <= 0;
+      }
     }
 
-    const brainBadge = document.getElementById("fries91-card-brain-badge");
-    if (brainBadge) {
-      brainBadge.textContent = String(brain);
-      brainBadge.hidden = brain <= 0;
+    for (const badgeId of ["fries91-card-brain-badge", IDS.directBrainBadge]) {
+      const brainBadge = document.getElementById(badgeId);
+      if (brainBadge) {
+        brainBadge.textContent = String(brain);
+        brainBadge.hidden = brain <= 0;
+      }
     }
 
     const chain = chainCondition();
@@ -1282,57 +1406,98 @@
         margin:0 !important;
         order:0 !important;
         z-index:2147482000 !important;
-        background:rgba(11,12,14,.96) !important;
+        background:rgba(11,12,14,.98) !important;
+        border-top:1px solid rgba(236,190,83,.18) !important;
+        border-bottom:1px solid rgba(236,190,83,.28) !important;
       }
       #${IDS.button} {
         position:relative !important;
+        display:grid !important;
+        grid-template-columns:repeat(9,minmax(0,1fr)) !important;
+        align-items:center !important;
+        gap:3px !important;
+        width:100% !important;
+        min-height:44px !important;
+        box-sizing:border-box !important;
+        padding:3px !important;
+        border:1px solid rgba(245,191,73,.58) !important;
+        border-radius:9px !important;
+        background:linear-gradient(180deg,#7d1419,#41080b) !important;
+        box-shadow:0 2px 9px rgba(0,0,0,.38) !important;
+        overflow:visible !important;
+      }
+      .fries91-direct-app-button {
+        position:relative !important;
+        min-width:0 !important;
+        width:100% !important;
+        height:36px !important;
+        min-height:36px !important;
+        padding:0 !important;
         display:flex !important;
         align-items:center !important;
         justify-content:center !important;
-        gap:7px !important;
-        width:100% !important;
-        min-height:30px !important;
-        padding:5px 38px !important;
-        border:1px solid rgba(245,191,73,.58) !important;
+        border:1px solid rgba(255,225,150,.22) !important;
         border-radius:7px !important;
-        background:linear-gradient(180deg,#8f171c,#4c080b) !important;
-        color:#fff5d8 !important;
-        font:900 12px/1.25 Arial,sans-serif !important;
-        letter-spacing:.1px !important;
-        text-align:center !important;
-        box-shadow:0 2px 8px rgba(0,0,0,.32) !important;
+        background:linear-gradient(180deg,rgba(28,31,37,.96),rgba(8,10,13,.96)) !important;
+        color:white !important;
+        box-shadow:0 1px 4px rgba(0,0,0,.42) !important;
         cursor:pointer !important;
+        touch-action:manipulation !important;
+        overflow:visible !important;
+      }
+      .fries91-direct-app-button:active {
+        transform:scale(.92) !important;
+        filter:brightness(1.25) !important;
+      }
+      .fries91-direct-hub-button {
+        border-color:rgba(255,213,102,.58) !important;
+        background:linear-gradient(180deg,#a11d23,#570d11) !important;
+      }
+      .fries91-direct-icon {
+        display:block !important;
+        font-size:20px !important;
+        line-height:1 !important;
+        filter:drop-shadow(0 1px 2px rgba(0,0,0,.65)) !important;
+        pointer-events:none !important;
+      }
+      .fries91-direct-badge {
+        position:absolute !important;
+        right:-3px !important;
+        top:-6px !important;
+        min-width:17px !important;
+        height:17px !important;
+        padding:0 4px !important;
+        box-sizing:border-box !important;
+        display:flex !important;
+        align-items:center !important;
+        justify-content:center !important;
+        border-radius:999px !important;
+        background:#ef3340 !important;
+        color:white !important;
+        font:900 9px/1 Arial,sans-serif !important;
+        box-shadow:0 0 0 2px #360608 !important;
         z-index:3 !important;
+        pointer-events:none !important;
       }
-      #${IDS.button}:active { transform:scale(.99) !important; }
-      .fries91-hub-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      .fries91-hub-badge,.fries91-card-alert {
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        min-width:17px;
-        height:17px;
-        padding:0 4px;
-        border-radius:999px;
-        background:#ef3340;
-        color:white;
-        font:900 10px/1 Arial,sans-serif;
-        box-shadow:0 0 0 2px #360608;
+      .fries91-direct-badge[hidden] { display:none !important; }
+      .fries91-direct-chain-light {
+        position:absolute !important;
+        left:2px !important;
+        top:2px !important;
+        width:8px !important;
+        height:8px !important;
+        border-radius:50% !important;
+        background:#526170 !important;
+        box-shadow:0 0 0 1px rgba(0,0,0,.48) !important;
+        pointer-events:none !important;
       }
-      .fries91-hub-badge { position:absolute; right:8px; top:2px; }
-      .fries91-hub-badge[hidden],.fries91-card-alert[hidden] { display:none !important; }
-      .fries91-chain-light {
-        position:absolute;
-        left:9px;
-        width:10px;
-        height:10px;
-        border-radius:50%;
-        background:#526170;
-        box-shadow:0 0 0 2px rgba(0,0,0,.38);
+      .fries91-direct-chain-light[data-level="green"] { background:#22c55e !important; box-shadow:0 0 6px #22c55e !important; }
+      .fries91-direct-chain-light[data-level="yellow"] { background:#facc15 !important; box-shadow:0 0 7px #facc15 !important; }
+      .fries91-direct-chain-light[data-level="red"] {
+        background:#ef4444 !important;
+        box-shadow:0 0 8px #ef4444 !important;
+        animation:fries91-pulse .9s infinite !important;
       }
-      .fries91-chain-light[data-level="green"] { background:#22c55e; box-shadow:0 0 8px #22c55e; }
-      .fries91-chain-light[data-level="yellow"] { background:#facc15; box-shadow:0 0 8px #facc15; }
-      .fries91-chain-light[data-level="red"] { background:#ef4444; box-shadow:0 0 10px #ef4444; animation:fries91-pulse .9s infinite; }
 
       #${IDS.overlay} {
         position:fixed !important;
@@ -1587,10 +1752,17 @@
         }
         #${IDS.button} {
           width:100% !important;
-          min-height:31px !important;
-          border-radius:6px !important;
-          font-size:12px !important;
+          min-height:43px !important;
+          gap:2px !important;
+          padding:3px !important;
+          border-radius:7px !important;
         }
+        .fries91-direct-app-button {
+          height:35px !important;
+          min-height:35px !important;
+          border-radius:6px !important;
+        }
+        .fries91-direct-icon { font-size:19px !important; }
         #${IDS.overlay} { padding:0 !important; }
         #${IDS.panel} { width:100% !important; max-height:100vh !important; height:100% !important; border:0 !important; border-radius:0 !important; }
         .fries91-hub-head { padding-top:max(9px,env(safe-area-inset-top,0px)) !important; }
